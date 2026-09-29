@@ -44,3 +44,19 @@
 6. Feedback visual: `confirm()` nativo trocado por modal acessível (`ConfirmDialog`); mensagens de erro do backend exibidas no toast
 7. Acessibilidade: `aria-label` nos botões −/+ e de remover, emojis decorativos com `aria-hidden`, `role="status"` nos carregamentos
 8. Rotas do cliente agora exigem login (`ClienteRoute`)
+
+# Checklist do MVP — Painel de Gestão e Sistema (28/09/2026)
+
+> **Banco:** novos campos `erpStatus`, `erpEnviadoEm` e `erpErro` em `orcamentos`. Rodar `npx prisma db push` de novo.
+
+1. Pedidos no admin: filtros para todos os status (inclui Em produção e Cancelado) com nomes legíveis; botão "Marcar finalizado" para pedidos em produção (antes nenhum pedido chegava a Finalizado); backend valida as transições de status do admin
+2. Relatórios: sem mudança (já atendido)
+3. E-mails: novo e-mail de "Pedido pronto" (Finalizado); mensagem do admin escapada no HTML
+4. Integração com o ERP legado (`ErpPort`):
+   - Pedido aprovado pelo cliente é enviado automaticamente, com dados do cliente, paciente, itens, valores, receita e anexos (em base64)
+   - Formato JSON ou XML (`ERP_FORMATO`)
+   - Com `ERP_URL`: POST HTTP com `Idempotency-Key` = id do pedido e token opcional (`ERP_TOKEN`)
+   - Sem `ERP_URL`: grava `pedido-XXXX.json|xml` em `backend/erp-saida` (troca por arquivo)
+   - Resultado fica no pedido (Enviado/Falhou + motivo); admin pode reenviar e baixar o JSON/XML de qualquer pedido
+   - Falha no ERP não desfaz a aprovação do cliente
+5. MinIO: links assinados agora usam o host público (`MINIO_PUBLIC_ENDPOINT`, padrão `localhost`). Dentro do Docker eles eram gerados com `minio:9000`, que o navegador não abre

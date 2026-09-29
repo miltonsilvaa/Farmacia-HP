@@ -10,10 +10,15 @@ import {
   Inject,
   Param,
   Request,
+  Query,
+  Res,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { ErpService } from '../../../erp.service';
+import { CONTENT_TYPE } from '../../../core/erp/erp-serializador';
 import { JwtAuthGuard } from '../../../../auth/core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/core/guards/roles.guard';
 import { Roles } from '../../../../auth/core/guards/roles.decorator';
@@ -30,6 +35,8 @@ export class OrcamentoController {
     private readonly enviarReceitaUseCase: EnviarReceitaUseCasePort,
 
     private readonly orcamentoService: OrcamentoService,
+
+    private readonly erpService: ErpService,
   ) {}
 
   @Get('admin')
@@ -52,6 +59,32 @@ export class OrcamentoController {
       body.preco,
       body.respostaAdmin,
     );
+  }
+
+  // Reenvio manual ao ERP (ex.: depois de uma falha)
+  @Post('admin/:id/erp')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async enviarAoErp(@Param('id') id: string) {
+    return this.erpService.sincronizar(id);
+  }
+
+  // Download do pedido no formato do ERP (?formato=json|xml)
+  @Get('admin/:id/erp')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async exportarErp(
+    @Param('id') id: string,
+    @Query('formato') formato: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const fmt = formato === 'xml' ? 'xml' : 'json';
+    const { conteudo, nomeArquivo } = await this.erpService.exportar(id, fmt);
+    res.set({
+      'Content-Type': CONTENT_TYPE[fmt],
+      'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
+    });
+    return conteudo;
   }
 
   @Get()

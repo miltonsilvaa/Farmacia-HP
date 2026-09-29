@@ -51,6 +51,11 @@ model Orcamento {
   preco             Decimal?         @db.Decimal(10, 2)
   criadoEm         DateTime         @default(now())
 
+  // Sincronização com o ERP legado
+  erpStatus         String?          // ENVIADO | ERRO
+  erpEnviadoEm      DateTime?
+  erpErro           String?
+
   usuario           Usuario          @relation(fields: [clienteId], references: [id])
   familiar          Familiar?        @relation(fields: [familiarId], references: [id])
   itens             OrcamentoItem[]

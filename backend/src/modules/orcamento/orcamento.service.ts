@@ -4,9 +4,17 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
 import { NOTIFICACAO_PORT, NotificacaoPort } from './core/ports/out/notificacao.port';
 import { FamiliarService } from '../familiar/familiar.service';
+import { ErpService } from './erp.service';
 
 // Status em que o pedido já foi concluído e pode ser refeito com 1 clique
 const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO'];
+
+// Transições que a equipe da farmácia pode fazer: status novo → status de origem aceitos
+const TRANSICOES_ADMIN: Record<string, string[]> = {
+  AGUARDANDO_PAGAMENTO: ['PENDENTE', 'AGUARDANDO_PAGAMENTO'],
+  RECUSADO: ['PENDENTE', 'AGUARDANDO_PAGAMENTO'],
+  FINALIZADO: ['PRODUCAO'],
+};
 
 @Injectable()
 export class OrcamentoService {
@@ -17,6 +25,7 @@ export class OrcamentoService {
     @Inject(NOTIFICACAO_PORT)
     private readonly notificacao: NotificacaoPort,
     private readonly familiarService: FamiliarService,
+    private readonly erpService: ErpService,
   ) {}
 
   private async notificar(clienteId: string, pedidoId: string, status: string, preco?: unknown, mensagem?: string | null) {
@@ -91,6 +100,14 @@ export class OrcamentoService {
     const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
     if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
 
+    const origensPermitidas = TRANSICOES_ADMIN[status];
+    if (!origensPermitidas) throw new BadRequestException(`Status inválido: ${status}.`);
+    if (!origensPermitidas.includes(orcamento.status)) {
+      throw new BadRequestException(
+        `Não é possível mudar um pedido de ${orcamento.status} para ${status}.`,
+      );
+    }
+
     const atualizado = await this.prisma.orcamento.update({
       where: { id },
       data: {
@@ -140,6 +157,8 @@ export class OrcamentoService {
       data: { status: novoStatus },
     });
     await this.notificar(orcamento.clienteId, id, novoStatus);
+    // Pedido aprovado segue para o ERP em segundo plano (falha fica registrada no pedido)
+    if (novoStatus === 'PRODUCAO') void this.erpService.sincronizar(id);
     return atualizado;
   }
 

@@ -14,12 +14,19 @@ import { NOTIFICACAO_PORT } from './core/ports/out/notificacao.port';
 import { EmailNotificacaoAdapter } from './adapters/out/notificacao/email-notificacao.adapter';
 
 import { FamiliarModule } from '../familiar/familiar.module';
+import { ErpService } from './erp.service';
+import { ERP_PORT } from './core/ports/out/erp.port';
+import { HttpErpAdapter } from './adapters/out/erp/http-erp.adapter';
+import { ArquivoErpAdapter } from './adapters/out/erp/arquivo-erp.adapter';
 
 @Module({
   imports: [AuthModule, FamiliarModule],
   controllers: [OrcamentoController],
   providers: [
     OrcamentoService,
+    ErpService,
+    // Com ERP_URL envia por HTTP; sem ela, grava arquivos na pasta de saída
+    { provide: ERP_PORT, useClass: process.env.ERP_URL ? HttpErpAdapter : ArquivoErpAdapter },
     { provide: ENVIAR_RECEITA_USE_CASE, useClass: EnviarReceitaUseCase },
     { provide: RENOVAR_RECEITA_USE_CASE, useClass: RenovarReceitaUseCase },
     { provide: ORCAMENTO_REPOSITORY, useClass: OrcamentoRepositoryAdapter },

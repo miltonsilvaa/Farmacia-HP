@@ -6,6 +6,7 @@ interface ConfirmDialogProps {
   mensagem: string;
   textoConfirmar?: string;
   processando?: boolean;
+  variante?: 'perigo' | 'primario';
   onConfirmar: () => void;
   onCancelar: () => void;
 }
@@ -17,6 +18,7 @@ export default function ConfirmDialog({
   mensagem,
   textoConfirmar = 'Confirmar',
   processando = false,
+  variante = 'perigo',
   onConfirmar,
   onCancelar,
 }: ConfirmDialogProps) {
@@ -66,7 +68,9 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirmar}
             disabled={processando}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+            className={`px-4 py-2 text-white font-bold rounded-lg transition-colors disabled:opacity-50 ${
+              variante === 'perigo' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+            }`}
           >
             {processando ? 'Processando...' : textoConfirmar}
           </button>

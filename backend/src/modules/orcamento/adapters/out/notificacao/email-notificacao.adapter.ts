@@ -8,7 +8,17 @@ const TEXTOS: Record<string, { titulo: string; texto: string }> = {
   RECUSADO: { titulo: 'Orçamento não aprovado', texto: 'Não foi possível atender a sua solicitação. Veja a mensagem da farmácia abaixo.' },
   PRODUCAO: { titulo: 'Pedido aprovado', texto: 'Obrigado! Seu pedido foi aprovado e seguiu para a manipulação.' },
   CANCELADO: { titulo: 'Pedido cancelado', texto: 'Você recusou o orçamento e o pedido foi cancelado.' },
+  FINALIZADO: { titulo: 'Pedido pronto', texto: 'Seu pedido foi finalizado pela farmácia e está pronto para retirada ou entrega.' },
 };
+
+// Texto digitado pelo admin entra no HTML do e-mail: escapa para não virar marcação
+function escaparHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 @Injectable()
 export class EmailNotificacaoAdapter implements NotificacaoPort {
@@ -26,7 +36,7 @@ export class EmailNotificacaoAdapter implements NotificacaoPort {
     const t = TEXTOS[status] ?? { titulo: 'Atualização do seu pedido', texto: `Novo status: ${status}` };
     const numero = pedidoId.substring(0, 8).toUpperCase();
     const valor = preco ? `<p><strong>Valor:</strong> R$ ${Number(preco).toFixed(2).replace('.', ',')}</p>` : '';
-    const msg = mensagem ? `<p><strong>Mensagem da farmácia:</strong> ${mensagem}</p>` : '';
+    const msg = mensagem ? `<p><strong>Mensagem da farmácia:</strong> ${escaparHtml(mensagem)}</p>` : '';
 
     try {
       await this.transporter.sendMail({

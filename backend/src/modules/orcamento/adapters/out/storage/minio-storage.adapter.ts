@@ -6,6 +6,9 @@ import { StoragePort } from '../../../core/ports/out/storage.port';
 @Injectable()
 export class MinioStorageAdapter implements StoragePort {
   private minioClient: Client;
+  // Cliente usado só para assinar links: precisa do host que o NAVEGADOR enxerga.
+  // Dentro do Docker o backend fala com "minio:9000", que o navegador não resolve.
+  private linkClient: Client;
   private bucketName = 'receitas';
   private readonly logger = new Logger(MinioStorageAdapter.name);
 
@@ -16,6 +19,16 @@ export class MinioStorageAdapter implements StoragePort {
       useSSL: false,
       accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
       secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
+    });
+
+    // Com a região fixa, a assinatura é calculada localmente, sem chamar o host público
+    this.linkClient = new Client({
+      endPoint: process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost',
+      port: parseInt(process.env.MINIO_PUBLIC_PORT || process.env.MINIO_PORT || '9000', 10),
+      useSSL: process.env.MINIO_PUBLIC_SSL === 'true',
+      accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
+      secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
+      region: 'us-east-1',
     });
 
     this.inicializarBucket();
@@ -66,10 +79,24 @@ export class MinioStorageAdapter implements StoragePort {
     const chave = this.extrairObjectKey(objectKey);
     try {
       // expiry = 3600 segundos (1 hora)
-      return await this.minioClient.presignedGetObject(this.bucketName, chave, 3600);
+      return await this.linkClient.presignedGetObject(this.bucketName, chave, 3600);
     } catch (error) {
       this.logger.error(`Erro ao gerar URL pré-assinada para ${chave}`, error);
       throw new Error('Não foi possível gerar o link de acesso ao arquivo.');
     }
+  }
+
+  async baixarArquivo(objectKey: string): Promise<{ buffer: Buffer; mimetype: string }> {
+    const chave = this.extrairObjectKey(objectKey);
+    const [stat, stream] = await Promise.all([
+      this.minioClient.statObject(this.bucketName, chave),
+      this.minioClient.getObject(this.bucketName, chave),
+    ]);
+    const partes: Buffer[] = [];
+    for await (const parte of stream) partes.push(Buffer.from(parte));
+    return {
+      buffer: Buffer.concat(partes),
+      mimetype: stat.metaData?.['content-type'] ?? 'application/octet-stream',
+    };
   }
 }

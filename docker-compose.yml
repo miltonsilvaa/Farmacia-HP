@@ -50,6 +50,15 @@ services:
       - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
+      # Host do MinIO usado nos links de receita abertos pelo navegador
+      - MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT:-localhost}
+      # ERP legado: com ERP_URL envia por HTTP; vazio grava arquivos em ./backend/erp-saida
+      - ERP_URL=${ERP_URL:-}
+      - ERP_TOKEN=${ERP_TOKEN:-}
+      - ERP_FORMATO=${ERP_FORMATO:-json}
+      - ERP_PASTA_SAIDA=/usr/src/app/erp-saida
+    volumes:
+      - ./backend/erp-saida:/usr/src/app/erp-saida
 
   # Frontend React
   frontend:
