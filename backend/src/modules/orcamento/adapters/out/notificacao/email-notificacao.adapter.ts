@@ -7,13 +7,35 @@ import {
 } from '../../../core/ports/out/notificacao.port';
 
 const TEXTOS: Record<string, { titulo: string; texto: string }> = {
-  PENDENTE: { titulo: 'Recebemos sua receita', texto: 'Seu pedido foi recebido e está em análise pela nossa equipe.' },
-  AGUARDANDO_PAGAMENTO: { titulo: 'Seu orçamento está pronto', texto: 'Acesse a Área do Cliente para aprovar ou recusar o orçamento.' },
-  RECUSADO: { titulo: 'Orçamento não aprovado', texto: 'Não foi possível atender a sua solicitação. Veja a mensagem da farmácia abaixo.' },
-  PRODUCAO: { titulo: 'Pedido aprovado', texto: 'Obrigado! Seu pedido foi aprovado e seguiu para a manipulação.' },
-  CANCELADO: { titulo: 'Pedido cancelado', texto: 'Você recusou o orçamento e o pedido foi cancelado.' },
-  FINALIZADO: { titulo: 'Pedido pronto', texto: 'Seu pedido está pronto para retirada ou envio.' },
-  ENTREGUE: { titulo: 'Pedido entregue', texto: 'Seu pedido foi entregue. Obrigado por comprar com a gente!' },
+  PENDENTE: {
+    titulo: 'Recebemos sua receita',
+    texto: 'Seu pedido foi recebido e está em análise pela nossa equipe.',
+  },
+  AGUARDANDO_PAGAMENTO: {
+    titulo: 'Seu orçamento está pronto',
+    texto: 'Acesse a Área do Cliente para aprovar ou recusar o orçamento.',
+  },
+  RECUSADO: {
+    titulo: 'Orçamento não aprovado',
+    texto:
+      'Não foi possível atender a sua solicitação. Veja a mensagem da farmácia abaixo.',
+  },
+  PRODUCAO: {
+    titulo: 'Pedido aprovado',
+    texto: 'Obrigado! Seu pedido foi aprovado e seguiu para a manipulação.',
+  },
+  CANCELADO: {
+    titulo: 'Pedido cancelado',
+    texto: 'Você recusou o orçamento e o pedido foi cancelado.',
+  },
+  FINALIZADO: {
+    titulo: 'Pedido pronto',
+    texto: 'Seu pedido está pronto para retirada ou envio.',
+  },
+  ENTREGUE: {
+    titulo: 'Pedido entregue',
+    texto: 'Seu pedido foi entregue. Obrigado por comprar com a gente!',
+  },
 };
 
 // Moldura padrão de todos os e-mails da farmácia
@@ -30,7 +52,8 @@ function layoutEmail(titulo: string, corpo: string): string {
 }
 
 const remetente = () =>
-  process.env.SMTP_FROM || `Grupo Farmácia HP <${process.env.SMTP_USER || 'nao-responda@farmaciahp.com.br'}>`;
+  process.env.SMTP_FROM ||
+  `Grupo Farmácia HP <${process.env.SMTP_USER || 'nao-responda@farmaciahp.com.br'}>`;
 
 // Texto digitado pelo admin entra no HTML do e-mail: escapa para não virar marcação
 function escaparHtml(texto: string): string {
@@ -53,25 +76,49 @@ export class EmailNotificacaoAdapter implements NotificacaoPort {
     }),
   });
 
-  async notificarStatus({ email, pedidoId, status, preco, mensagem }: NotificacaoStatus): Promise<void> {
-    const t = TEXTOS[status] ?? { titulo: 'Atualização do seu pedido', texto: `Novo status: ${status}` };
+  async notificarStatus({
+    email,
+    pedidoId,
+    status,
+    preco,
+    mensagem,
+  }: NotificacaoStatus): Promise<void> {
+    const t = TEXTOS[status] ?? {
+      titulo: 'Atualização do seu pedido',
+      texto: `Novo status: ${status}`,
+    };
     const numero = pedidoId.substring(0, 8).toUpperCase();
-    const valor = preco ? `<p><strong>Valor:</strong> R$ ${Number(preco).toFixed(2).replace('.', ',')}</p>` : '';
-    const msg = mensagem ? `<p><strong>Mensagem da farmácia:</strong> ${escaparHtml(mensagem)}</p>` : '';
+    const valor = preco
+      ? `<p><strong>Valor:</strong> R$ ${Number(preco).toFixed(2).replace('.', ',')}</p>`
+      : '';
+    const msg = mensagem
+      ? `<p><strong>Mensagem da farmácia:</strong> ${escaparHtml(mensagem)}</p>`
+      : '';
 
     try {
       await this.transporter.sendMail({
         from: remetente(),
         to: email,
         subject: `Pedido #${numero} — ${t.titulo}`,
-        html: layoutEmail(t.titulo, `<p>${t.texto}</p><p><strong>Pedido:</strong> #${numero}</p>${valor}${msg}`),
+        html: layoutEmail(
+          t.titulo,
+          `<p>${t.texto}</p><p><strong>Pedido:</strong> #${numero}</p>${valor}${msg}`,
+        ),
       });
     } catch (error) {
-      this.logger.error(`Falha ao enviar e-mail do pedido ${numero} para ${email}`, error);
+      this.logger.error(
+        `Falha ao enviar e-mail do pedido ${numero} para ${email}`,
+        error,
+      );
     }
   }
 
-  async lembrarRecompra({ email, pedidoId, paciente, linkRenovar }: LembreteRecompra): Promise<void> {
+  async lembrarRecompra({
+    email,
+    pedidoId,
+    paciente,
+    linkRenovar,
+  }: LembreteRecompra): Promise<void> {
     const numero = pedidoId.substring(0, 8).toUpperCase();
     const para = paciente ? ` de ${escaparHtml(paciente)}` : '';
     try {
@@ -89,7 +136,10 @@ export class EmailNotificacaoAdapter implements NotificacaoPort {
         ),
       });
     } catch (error) {
-      this.logger.error(`Falha ao enviar lembrete de recompra do pedido ${numero} para ${email}`, error);
+      this.logger.error(
+        `Falha ao enviar lembrete de recompra do pedido ${numero} para ${email}`,
+        error,
+      );
       throw error;
     }
   }

@@ -37,7 +37,9 @@ export class ProdutosService {
     // A relação vale nos dois sentidos: junta os dois lados num só campo
     return produtos.map(({ relacionados, relacionadoPor, ...p }) => ({
       ...p,
-      relacionadosIds: [...new Set([...relacionados, ...relacionadoPor].map((r) => r.id))],
+      relacionadosIds: [
+        ...new Set([...relacionados, ...relacionadoPor].map((r) => r.id)),
+      ],
     }));
   }
 
@@ -71,7 +73,10 @@ export class ProdutosService {
     return produto;
   }
 
-  async atualizar(id: string, { relacionadosIds, ...dados }: Partial<DadosProduto>) {
+  async atualizar(
+    id: string,
+    { relacionadosIds, ...dados }: Partial<DadosProduto>,
+  ) {
     await this.buscarUm(id);
     if (relacionadosIds) {
       // Limpa os dois lados antes de gravar a nova lista
@@ -86,7 +91,9 @@ export class ProdutosService {
         ...dados,
         ...(relacionadosIds && {
           relacionados: {
-            connect: relacionadosIds.filter((r) => r !== id).map((r) => ({ id: r })),
+            connect: relacionadosIds
+              .filter((r) => r !== id)
+              .map((r) => ({ id: r })),
           },
         }),
       },
@@ -95,6 +102,9 @@ export class ProdutosService {
 
   async inativar(id: string) {
     await this.buscarUm(id);
-    return this.prisma.produto.update({ where: { id }, data: { ativo: false } });
+    return this.prisma.produto.update({
+      where: { id },
+      data: { ativo: false },
+    });
   }
 }

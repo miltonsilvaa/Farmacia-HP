@@ -1,7 +1,12 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
-import { ERP_PORT, ErpPort, FormatoErp, PedidoErp } from './core/ports/out/erp.port';
+import {
+  ERP_PORT,
+  ErpPort,
+  FormatoErp,
+  PedidoErp,
+} from './core/ports/out/erp.port';
 import { serializarPedido } from './core/erp/erp-serializador';
 
 @Injectable()
@@ -29,8 +34,16 @@ export class ErpService {
     if (!o) throw new NotFoundException('Pedido não encontrado.');
 
     const arquivos = [
-      { tipo: 'RECEITA' as const, url: o.arquivoReceitaUrl, nome: o.arquivoReceitaUrl.split('/').pop()! },
-      ...o.anexos.map((a) => ({ tipo: 'ANEXO' as const, url: a.arquivoUrl, nome: a.nomeArquivo })),
+      {
+        tipo: 'RECEITA' as const,
+        url: o.arquivoReceitaUrl,
+        nome: o.arquivoReceitaUrl.split('/').pop(),
+      },
+      ...o.anexos.map((a) => ({
+        tipo: 'ANEXO' as const,
+        url: a.arquivoUrl,
+        nome: a.nomeArquivo,
+      })),
     ];
 
     return {
@@ -51,9 +64,16 @@ export class ErpService {
             nome: o.familiar.nome,
             parentesco: o.familiar.parentesco,
             especie: o.familiar.especie,
-            dataNascimento: o.familiar.dataNascimento?.toISOString().slice(0, 10) ?? null,
+            dataNascimento:
+              o.familiar.dataNascimento?.toISOString().slice(0, 10) ?? null,
           }
-        : { tipo: 'TITULAR', nome: null, parentesco: null, especie: null, dataNascimento: null },
+        : {
+            tipo: 'TITULAR',
+            nome: null,
+            parentesco: null,
+            especie: null,
+            dataNascimento: null,
+          },
       itens: o.itens.map((i) => ({
         produtoId: i.produtoId,
         nome: i.produto.nome,
@@ -63,7 +83,9 @@ export class ErpService {
       })),
       arquivos: await Promise.all(
         arquivos.map(async (a) => {
-          const { buffer, mimetype } = await this.storagePort.baixarArquivo(a.url);
+          const { buffer, mimetype } = await this.storagePort.baixarArquivo(
+            a.url,
+          );
           return {
             tipo: a.tipo,
             nomeArquivo: a.nome,
@@ -83,16 +105,27 @@ export class ErpService {
       return await this.prisma.orcamento.update({
         where: { id },
         data: { erpStatus: 'ENVIADO', erpEnviadoEm: new Date(), erpErro: null },
-        select: { id: true, erpStatus: true, erpEnviadoEm: true, erpErro: true },
+        select: {
+          id: true,
+          erpStatus: true,
+          erpEnviadoEm: true,
+          erpErro: true,
+        },
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      const mensagem = error instanceof Error ? error.message : String(error);
+      const mensagem =
+        error instanceof Error ? error.message : JSON.stringify(error);
       this.logger.error(`Falha ao enviar pedido ${id} ao ERP: ${mensagem}`);
       return this.prisma.orcamento.update({
         where: { id },
         data: { erpStatus: 'ERRO', erpErro: mensagem.slice(0, 500) },
-        select: { id: true, erpStatus: true, erpEnviadoEm: true, erpErro: true },
+        select: {
+          id: true,
+          erpStatus: true,
+          erpEnviadoEm: true,
+          erpErro: true,
+        },
       });
     }
   }

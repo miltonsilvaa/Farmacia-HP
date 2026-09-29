@@ -27,17 +27,4 @@ export class OrcamentoRepositoryAdapter implements OrcamentoRepositoryPort {
       },
     });
   }
-
-  async buscarPorClienteId(clienteId: string): Promise<Orcamento[]> {
-    const rows = await this.prisma.orcamento.findMany({ where: { clienteId } });
-    return rows.map(
-      (r) => new Orcamento(r.id, r.clienteId, r.arquivoReceitaUrl, r.status as 'PENDENTE' | 'RESPONDIDO', r.observacoes ?? undefined),
-    );
-  }
-
-  async buscarPorId(id: string): Promise<Orcamento | null> {
-    const r = await this.prisma.orcamento.findUnique({ where: { id } });
-    if (!r) return null;
-    return new Orcamento(r.id, r.clienteId, r.arquivoReceitaUrl, r.status as 'PENDENTE' | 'RESPONDIDO', r.observacoes ?? undefined);
-  }
 }

@@ -23,15 +23,21 @@ export class MinioStorageAdapter implements StoragePort {
 
     // Com a região fixa, a assinatura é calculada localmente, sem chamar o host público
     this.linkClient = new Client({
-      endPoint: process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost',
-      port: parseInt(process.env.MINIO_PUBLIC_PORT || process.env.MINIO_PORT || '9000', 10),
+      endPoint:
+        process.env.MINIO_PUBLIC_ENDPOINT ||
+        process.env.MINIO_ENDPOINT ||
+        'localhost',
+      port: parseInt(
+        process.env.MINIO_PUBLIC_PORT || process.env.MINIO_PORT || '9000',
+        10,
+      ),
       useSSL: process.env.MINIO_PUBLIC_SSL === 'true',
       accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
       secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
       region: 'us-east-1',
     });
 
-    this.inicializarBucket();
+    void this.inicializarBucket();
   }
 
   private async inicializarBucket() {
@@ -39,10 +45,15 @@ export class MinioStorageAdapter implements StoragePort {
       const existe = await this.minioClient.bucketExists(this.bucketName);
       if (!existe) {
         await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        this.logger.log(`Bucket '${this.bucketName}' criado com sucesso no MinIO.`);
+        this.logger.log(
+          `Bucket '${this.bucketName}' criado com sucesso no MinIO.`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Erro ao verificar/criar o bucket '${this.bucketName}'`, error);
+      this.logger.error(
+        `Erro ao verificar/criar o bucket '${this.bucketName}'`,
+        error,
+      );
     }
   }
 
@@ -54,7 +65,11 @@ export class MinioStorageAdapter implements StoragePort {
     return valor;
   }
 
-  async uploadArquivo(nomeArquivo: string, buffer: Buffer, mimetype: string): Promise<string> {
+  async uploadArquivo(
+    nomeArquivo: string,
+    buffer: Buffer,
+    mimetype: string,
+  ): Promise<string> {
     const hash = crypto.randomBytes(8).toString('hex');
     const nomeUnico = `${hash}-${nomeArquivo.replace(/\s+/g, '_')}`;
 
@@ -79,14 +94,20 @@ export class MinioStorageAdapter implements StoragePort {
     const chave = this.extrairObjectKey(objectKey);
     try {
       // expiry = 3600 segundos (1 hora)
-      return await this.linkClient.presignedGetObject(this.bucketName, chave, 3600);
+      return await this.linkClient.presignedGetObject(
+        this.bucketName,
+        chave,
+        3600,
+      );
     } catch (error) {
       this.logger.error(`Erro ao gerar URL pré-assinada para ${chave}`, error);
       throw new Error('Não foi possível gerar o link de acesso ao arquivo.');
     }
   }
 
-  async baixarArquivo(objectKey: string): Promise<{ buffer: Buffer; mimetype: string }> {
+  async baixarArquivo(
+    objectKey: string,
+  ): Promise<{ buffer: Buffer; mimetype: string }> {
     const chave = this.extrairObjectKey(objectKey);
     const [stat, stream] = await Promise.all([
       this.minioClient.statObject(this.bucketName, chave),

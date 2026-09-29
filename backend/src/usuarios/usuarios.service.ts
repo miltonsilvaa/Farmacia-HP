@@ -12,7 +12,10 @@ export class UsuariosService {
       const usuario = await this.prisma.usuario.create({
         data: { email, senha: senhaHasheada },
       });
-      return { mensagem: 'Usuário cadastrado com sucesso!', email: usuario.email };
+      return {
+        mensagem: 'Usuário cadastrado com sucesso!',
+        email: usuario.email,
+      };
     } catch {
       throw new ConflictException('Esse e-mail já está cadastrado.');
     }

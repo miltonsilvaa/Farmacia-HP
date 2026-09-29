@@ -24,9 +24,11 @@ export class FamiliarService {
       ...(dados.nome !== undefined && { nome: dados.nome.trim() }),
       tipo,
       parentesco: tipo === 'PET' ? 'Pet' : (dados.parentesco ?? 'Outro'),
-      especie: tipo === 'PET' ? (dados.especie || null) : null,
+      especie: tipo === 'PET' ? dados.especie || null : null,
       ...(dados.dataNascimento !== undefined && {
-        dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : null,
+        dataNascimento: dados.dataNascimento
+          ? new Date(dados.dataNascimento)
+          : null,
       }),
     };
   }
@@ -38,7 +40,11 @@ export class FamiliarService {
     });
   }
 
-  async atualizar(familiarId: string, usuarioId: string, dados: Partial<DadosFamiliar>) {
+  async atualizar(
+    familiarId: string,
+    usuarioId: string,
+    dados: Partial<DadosFamiliar>,
+  ) {
     await this.buscarProprio(familiarId, usuarioId);
     return this.prisma.familiar.update({
       where: { id: familiarId },
@@ -63,7 +69,9 @@ export class FamiliarService {
 
   async remover(familiarId: string, usuarioId: string) {
     await this.buscarProprio(familiarId, usuarioId);
-    const pedidos = await this.prisma.orcamento.count({ where: { familiarId } });
+    const pedidos = await this.prisma.orcamento.count({
+      where: { familiarId },
+    });
     if (pedidos > 0) {
       throw new BadRequestException(
         'Este dependente tem pedidos no histórico e não pode ser removido.',
@@ -78,7 +86,9 @@ export class FamiliarService {
       where: { id: familiarId, usuarioId },
     });
     if (!familiar) {
-      throw new NotFoundException('Familiar não encontrado ou não pertence ao usuário.');
+      throw new NotFoundException(
+        'Familiar não encontrado ou não pertence ao usuário.',
+      );
     }
     return familiar;
   }
@@ -94,8 +104,13 @@ export class FamiliarService {
   }
 
   // O usuário pode usar o dependente se for o titular ou um membro com acesso aceito
-  async podeAcessarFamiliar(usuarioId: string, familiarId: string): Promise<boolean> {
-    const familiar = await this.prisma.familiar.findUnique({ where: { id: familiarId } });
+  async podeAcessarFamiliar(
+    usuarioId: string,
+    familiarId: string,
+  ): Promise<boolean> {
+    const familiar = await this.prisma.familiar.findUnique({
+      where: { id: familiarId },
+    });
     if (!familiar) return false;
     if (familiar.usuarioId === usuarioId) return true;
     const titulares = await this.titularesAcessiveis(usuarioId);
@@ -116,20 +131,34 @@ export class FamiliarService {
     ]);
     return {
       concedidos,
-      recebidos: recebidos.map(({ titular, ...a }) => ({ ...a, titularEmail: titular.email })),
+      recebidos: recebidos.map(({ titular, ...a }) => ({
+        ...a,
+        titularEmail: titular.email,
+      })),
     };
   }
 
-  async convidar(usuarioId: string, emailTitular: string, emailConvidado: string) {
+  async convidar(
+    usuarioId: string,
+    emailTitular: string,
+    emailConvidado: string,
+  ) {
     const email = emailConvidado?.trim().toLowerCase();
-    if (!email || !email.includes('@')) throw new BadRequestException('Informe um e-mail válido.');
+    if (!email || !email.includes('@'))
+      throw new BadRequestException('Informe um e-mail válido.');
     if (email === emailTitular.toLowerCase()) {
       throw new BadRequestException('Você não pode convidar a si mesmo.');
     }
     const existente = await this.prisma.familiaAcesso.findUnique({
-      where: { titularId_emailConvidado: { titularId: usuarioId, emailConvidado: email } },
+      where: {
+        titularId_emailConvidado: {
+          titularId: usuarioId,
+          emailConvidado: email,
+        },
+      },
     });
-    if (existente) throw new BadRequestException('Este e-mail já foi convidado.');
+    if (existente)
+      throw new BadRequestException('Este e-mail já foi convidado.');
 
     return this.prisma.familiaAcesso.create({
       data: { titularId: usuarioId, emailConvidado: email },
@@ -137,7 +166,9 @@ export class FamiliarService {
   }
 
   async aceitar(acessoId: string, usuarioId: string, email: string) {
-    const acesso = await this.prisma.familiaAcesso.findUnique({ where: { id: acessoId } });
+    const acesso = await this.prisma.familiaAcesso.findUnique({
+      where: { id: acessoId },
+    });
     if (!acesso || acesso.emailConvidado !== email.toLowerCase()) {
       throw new NotFoundException('Convite não encontrado.');
     }
@@ -149,7 +180,9 @@ export class FamiliarService {
 
   // O titular revoga o acesso, ou o convidado recusa/sai do grupo
   async removerAcesso(acessoId: string, usuarioId: string, email: string) {
-    const acesso = await this.prisma.familiaAcesso.findUnique({ where: { id: acessoId } });
+    const acesso = await this.prisma.familiaAcesso.findUnique({
+      where: { id: acessoId },
+    });
     if (!acesso) throw new NotFoundException('Convite não encontrado.');
     const ehTitular = acesso.titularId === usuarioId;
     const ehConvidado = acesso.emailConvidado === email.toLowerCase();

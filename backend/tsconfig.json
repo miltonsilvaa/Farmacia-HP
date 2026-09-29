@@ -18,7 +18,8 @@
     "noImplicitAny": false,
     "strictPropertyInitialization": false,
     "types": [
-      "node"
+      "node",
+      "jest"
     ],
     "paths": {
       "src/*": [

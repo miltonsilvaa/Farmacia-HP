@@ -1,7 +1,10 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NOTIFICACAO_PORT, NotificacaoPort } from './core/ports/out/notificacao.port';
+import {
+  NOTIFICACAO_PORT,
+  NotificacaoPort,
+} from './core/ports/out/notificacao.port';
 import { STATUS_RENOVAVEIS } from './orcamento.service';
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -73,7 +76,9 @@ export class LembreteRecompraService {
     }
 
     if (candidatos.length > 0) {
-      this.logger.log(`Lembretes de recompra: ${enviados} enviado(s) de ${candidatos.length} candidato(s).`);
+      this.logger.log(
+        `Lembretes de recompra: ${enviados} enviado(s) de ${candidatos.length} candidato(s).`,
+      );
     }
     return { candidatos: candidatos.length, enviados };
   }

@@ -1,7 +1,10 @@
 import { FormatoErp, PedidoErp } from '../ports/out/erp.port';
 
 // Nome do elemento de cada item de lista no XML
-const ITEM_DE_LISTA: Record<string, string> = { itens: 'item', arquivos: 'arquivo' };
+const ITEM_DE_LISTA: Record<string, string> = {
+  itens: 'item',
+  arquivos: 'arquivo',
+};
 
 function escaparXml(valor: string): string {
   return valor
@@ -17,7 +20,9 @@ function paraElementos(valor: unknown, nome: string, nivel: number): string {
   if (valor === null || valor === undefined) return `${recuo}<${nome}/>\n`;
   if (Array.isArray(valor)) {
     const filho = ITEM_DE_LISTA[nome] ?? 'item';
-    const conteudo = valor.map((v) => paraElementos(v, filho, nivel + 1)).join('');
+    const conteudo = valor
+      .map((v) => paraElementos(v, filho, nivel + 1))
+      .join('');
     return `${recuo}<${nome}>\n${conteudo}${recuo}</${nome}>\n`;
   }
   if (typeof valor === 'object') {
@@ -26,10 +31,13 @@ function paraElementos(valor: unknown, nome: string, nivel: number): string {
       .join('');
     return `${recuo}<${nome}>\n${conteudo}${recuo}</${nome}>\n`;
   }
-  return `${recuo}<${nome}>${escaparXml(String(valor))}</${nome}>\n`;
+  return `${recuo}<${nome}>${escaparXml(String(valor as string | number | boolean))}</${nome}>\n`;
 }
 
-export function serializarPedido(pedido: PedidoErp, formato: FormatoErp): string {
+export function serializarPedido(
+  pedido: PedidoErp,
+  formato: FormatoErp,
+): string {
   if (formato === 'xml') {
     return `<?xml version="1.0" encoding="UTF-8"?>\n${paraElementos(pedido, 'pedidoFarmacia', 0)}`;
   }

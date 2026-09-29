@@ -1,4 +1,14 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../auth/core/guards/jwt-auth.guard';
 import { FamiliarService } from '../../../familiar.service';
 
@@ -53,7 +63,11 @@ export class FamiliaAcessoController {
 
   @Post()
   async convidar(@Body() body: { email: string }, @Request() req: any) {
-    return this.familiarService.convidar(req.user.id, req.user.email, body.email);
+    return this.familiarService.convidar(
+      req.user.id,
+      req.user.email,
+      body.email,
+    );
   }
 
   @Post(':id/aceitar')

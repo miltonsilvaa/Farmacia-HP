@@ -85,3 +85,18 @@
 - ERP: a posologia vai no JSON/XML de saída e o ERP pode enviá-la de volta:
   `PUT /erp/pedidos/:id/posologia` com `Authorization: Bearer <ERP_TOKEN>` e corpo `{ "posologia": "..." }`
   (sem `ERP_TOKEN` configurado essa rota fica desligada)
+
+# Etapa 2 — Qualidade de código, Fase 1 (28/09/2026)
+
+> Backup antes desta etapa: tag `snapshot-mvp-completo-2026-09-28`. Sem mudança de banco. **Rebuildar o backend** (`docker compose up --build`): a dependência `@nestjs/schedule` foi trocada da v12 para a v6.
+
+1. ERP isolado por adapter, com troca explícita por `ERP_MODO=mock|arquivo|http`
+   - Novo `MockErpAdapter` (em memória, sem rede/disco) para testes e desenvolvimento
+   - Sem `ERP_MODO` nada muda (http se houver `ERP_URL`, senão arquivo); valor inválido ou `http` sem `ERP_URL` param o boot com mensagem clara
+   - Não foram criados `buscarHistorico()`/`consultarStatus()` nem conector por socket: nada no sistema usa, e o protocolo do ERP ainda depende de resposta do PO (`integracao-erp.md`)
+2. Testes automatizados funcionando (`npm test`): 62 testes em 9 suítes, sem banco
+   - Transições de status, aprovação/recusa (e envio ao ERP), renovação, acesso do Grupo Família, convites, pets, produtos complementares, lembrete de recompra, montagem e serialização JSON/XML do ERP, escolha do adapter, hash de senha
+   - Causa de nenhum teste rodar antes: `tsconfig` sem os tipos do Jest
+3. Correção: `@nestjs/schedule` v12 é só ESM e o backend é CommonJS (os testes pegaram); fixado na v6, compatível com Nest 11
+4. Código morto removido (nenhum comportamento muda): use-cases/repositórios de família e de renovação que não eram usados, `LoginUseCase` com usuário simulado, módulo `produto-teste`, `AppController` "Hello World", DTOs/entidades vazios e o teste e2e do "Hello World"
+5. Formatação padronizada com o Prettier do projeto e avisos de lint corrigidos (promises soltas, `async` sem `await`, asserções desnecessárias). Restam só avisos de `any` nos controllers, a tratar com validação de entrada

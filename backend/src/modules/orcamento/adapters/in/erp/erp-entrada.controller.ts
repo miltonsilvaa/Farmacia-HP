@@ -10,7 +10,10 @@ export class ErpEntradaController {
 
   // PUT /erp/pedidos/:id/posologia  { "posologia": "Tomar 10 gotas 2x ao dia" }
   @Put('pedidos/:id/posologia')
-  async definirPosologia(@Param('id') id: string, @Body() body: { posologia: string | null }) {
+  async definirPosologia(
+    @Param('id') id: string,
+    @Body() body: { posologia: string | null },
+  ) {
     return this.orcamentoService.definirPosologia(id, body.posologia);
   }
 }

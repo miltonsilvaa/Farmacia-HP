@@ -6,7 +6,10 @@ import {
 } from '../ports/in/enviar-receita.use-case.port';
 import { ORCAMENTO_REPOSITORY } from '../ports/out/orcamento.repository.port';
 import { STORAGE_PORT } from '../ports/out/storage.port';
-import { NOTIFICACAO_PORT, NotificacaoPort } from '../ports/out/notificacao.port';
+import {
+  NOTIFICACAO_PORT,
+  NotificacaoPort,
+} from '../ports/out/notificacao.port';
 import { Orcamento } from '../entities/orcamento.entity';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { FamiliarService } from '../../../familiar/familiar.service';
@@ -35,7 +38,9 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
         command.familiarId,
       );
       if (!permitido) {
-        throw new ForbiddenException('Este dependente não pertence ao seu Grupo Família.');
+        throw new ForbiddenException(
+          'Este dependente não pertence ao seu Grupo Família.',
+        );
       }
     }
 
@@ -94,7 +99,11 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
       select: { email: true },
     });
     if (usuario) {
-      void this.notificacao.notificarStatus({ email: usuario.email, pedidoId: novoOrcamento.id, status: 'PENDENTE' });
+      void this.notificacao.notificarStatus({
+        email: usuario.email,
+        pedidoId: novoOrcamento.id,
+        status: 'PENDENTE',
+      });
     }
 
     return { id: novoOrcamento.id };

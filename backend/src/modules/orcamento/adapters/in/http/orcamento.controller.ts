@@ -54,7 +54,13 @@ export class OrcamentoController {
   @Roles('ADMIN')
   async avaliarOrcamento(
     @Param('id') id: string,
-    @Body() body: { status: string; preco?: number; respostaAdmin?: string; posologia?: string },
+    @Body()
+    body: {
+      status: string;
+      preco?: number;
+      respostaAdmin?: string;
+      posologia?: string;
+    },
   ) {
     return this.orcamentoService.avaliarOrcamento(
       id,
@@ -68,7 +74,10 @@ export class OrcamentoController {
   @Patch('admin/:id/posologia')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  async definirPosologia(@Param('id') id: string, @Body() body: { posologia: string | null }) {
+  async definirPosologia(
+    @Param('id') id: string,
+    @Body() body: { posologia: string | null },
+  ) {
     return this.orcamentoService.definirPosologia(id, body.posologia);
   }
 
@@ -123,15 +132,23 @@ export class OrcamentoController {
       {
         limits: { fileSize: 10 * 1024 * 1024 },
         fileFilter: (_req, file, cb) => {
-          const ok = file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf';
-          cb(ok ? null : new BadRequestException('Envie apenas imagem ou PDF.'), ok);
+          const ok =
+            file.mimetype.startsWith('image/') ||
+            file.mimetype === 'application/pdf';
+          cb(
+            ok ? null : new BadRequestException('Envie apenas imagem ou PDF.'),
+            ok,
+          );
         },
       },
     ),
   )
   async enviarReceita(
     @UploadedFiles()
-    arquivos: { arquivo?: Express.Multer.File[]; anexos?: Express.Multer.File[] },
+    arquivos: {
+      arquivo?: Express.Multer.File[];
+      anexos?: Express.Multer.File[];
+    },
     @Body() body: { observacoes?: string; itens?: string; familiarId?: string },
     @Request() req: any,
   ) {
@@ -167,7 +184,8 @@ export class OrcamentoController {
     return {
       sucesso: true,
       id: resultado.id,
-      mensagem: 'Receita enviada com sucesso! Nossa equipe analisará e você receberá o orçamento em breve.',
+      mensagem:
+        'Receita enviada com sucesso! Nossa equipe analisará e você receberá o orçamento em breve.',
     };
   }
 
