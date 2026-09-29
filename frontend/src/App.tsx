@@ -11,6 +11,7 @@ import GrupoFamilia from './pages/GrupoFamilia';
 import DashboardAdmin from './pages/DashboardAdmin';
 import AdminProdutos from './pages/AdminProdutos';
 import AdminPedidos from './pages/AdminPedidos';
+import AdminRelatorios from './pages/AdminRelatorios';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/dashboard-admin" element={<DashboardAdmin />} />
             <Route path="/admin/produtos" element={<AdminProdutos />} />
             <Route path="/admin/pedidos" element={<AdminPedidos />} />
+            <Route path="/admin/relatorios" element={<AdminRelatorios />} />
           </Route>
         </Route>
 

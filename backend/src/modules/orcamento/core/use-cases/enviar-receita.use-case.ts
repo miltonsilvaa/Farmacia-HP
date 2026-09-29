@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, ForbiddenException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   EnviarReceitaUseCasePort,
@@ -6,6 +6,7 @@ import {
 } from '../ports/in/enviar-receita.use-case.port';
 import { ORCAMENTO_REPOSITORY } from '../ports/out/orcamento.repository.port';
 import { STORAGE_PORT } from '../ports/out/storage.port';
+import { NOTIFICACAO_PORT, NotificacaoPort } from '../ports/out/notificacao.port';
 import { Orcamento } from '../entities/orcamento.entity';
 import { PrismaService } from '../../../../prisma/prisma.service';
 
@@ -19,9 +20,21 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
     private readonly storagePort: any,
 
     private readonly prisma: PrismaService,
+
+    @Inject(NOTIFICACAO_PORT)
+    private readonly notificacao: NotificacaoPort,
   ) {}
 
   async executar(command: EnviarReceitaCommand): Promise<{ id: string }> {
+    if (command.familiarId) {
+      const familiar = await this.prisma.familiar.findFirst({
+        where: { id: command.familiarId, usuarioId: command.clienteId },
+      });
+      if (!familiar) {
+        throw new ForbiddenException('Este dependente não pertence à sua conta.');
+      }
+    }
+
     const arquivoUrl = await this.storagePort.uploadArquivo(
       command.nomeArquivo,
       command.buffer,
@@ -55,6 +68,14 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
           },
         });
       }
+    }
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: command.clienteId },
+      select: { email: true },
+    });
+    if (usuario) {
+      void this.notificacao.notificarStatus({ email: usuario.email, pedidoId: novoOrcamento.id, status: 'PENDENTE' });
     }
 
     return { id: novoOrcamento.id };

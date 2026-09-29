@@ -117,8 +117,8 @@ export default function GrupoFamilia() {
           <form onSubmit={handleSalvarFamiliar} className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Nome Completo</label>
-                <input
+                <label htmlFor="grupofamilia-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">Nome Completo</label>
+                <input id="grupofamilia-campo-1"
                   type="text"
                   required
                   value={novoNome}
@@ -128,8 +128,8 @@ export default function GrupoFamilia() {
                 />
               </div>
               <div className="w-full md:w-48">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Parentesco</label>
-                <select
+                <label htmlFor="grupofamilia-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">Parentesco</label>
+                <select id="grupofamilia-campo-2"
                   required
                   value={novoParentesco}
                   onChange={(e) => setNovoParentesco(e.target.value)}
@@ -143,8 +143,8 @@ export default function GrupoFamilia() {
                 </select>
               </div>
               <div className="w-full md:w-48">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Data de Nascimento</label>
-                <input
+                <label htmlFor="grupofamilia-campo-3" className="block text-sm font-semibold text-gray-700 mb-1">Data de Nascimento</label>
+                <input id="grupofamilia-campo-3"
                   type="date"
                   value={novaDataNascimento}
                   onChange={(e) => setNovaDataNascimento(e.target.value)}

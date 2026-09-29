@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { apiFetch, getUsuario } from '../lib/api';
+import { apiFetch } from '../lib/api';
 
 interface Produto {
   id: string;
@@ -97,9 +97,7 @@ export default function NovoOrcamento() {
 
     setIsSubmitting(true);
     try {
-      const usuario = getUsuario();
       const formData = new FormData();
-      formData.append('clienteId', usuario?.id ?? '');
       formData.append('arquivo', arquivo);
       if (observacoes) formData.append('observacoes', observacoes);
       if (familiarId) formData.append('familiarId', familiarId);
@@ -170,8 +168,9 @@ export default function NovoOrcamento() {
 
             {/* Paciente */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="font-semibold text-gray-800 mb-4">1. Para quem é esta receita?</h2>
+              <h2 id="titulo-paciente" className="font-semibold text-gray-800 mb-4">1. Para quem é esta receita?</h2>
               <select
+                aria-labelledby="titulo-paciente"
                 value={familiarId}
                 onChange={(e) => setFamiliarId(e.target.value)}
                 disabled={isSubmitting}
@@ -237,8 +236,9 @@ export default function NovoOrcamento() {
 
             {/* Observações */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="font-semibold text-gray-800 mb-4">3. Observações (Opcional)</h2>
+              <h2 id="titulo-observacoes" className="font-semibold text-gray-800 mb-4">3. Observações (Opcional)</h2>
               <textarea
+                aria-labelledby="titulo-observacoes"
                 rows={3}
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}

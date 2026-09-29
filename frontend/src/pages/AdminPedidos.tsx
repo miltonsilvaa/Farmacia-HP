@@ -33,6 +33,11 @@ export default function AdminPedidos() {
   const [orcamentos, setOrcamentos] = useState<OrcamentoAdmin[]>([]);
   const [isCarregando, setIsCarregando] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState('TODOS');
+
+  const statusFiltro = ['TODOS', 'PENDENTE', 'AGUARDANDO_PAGAMENTO', 'RECUSADO', 'FINALIZADO'];
+  const contar = (s: string) =>
+    s === 'TODOS' ? orcamentos.length : orcamentos.filter((o) => o.status === s).length;
 
   useEffect(() => {
     const carregar = async () => {
@@ -52,6 +57,8 @@ export default function AdminPedidos() {
     carregar();
   }, []);
 
+  const lista = filtro === 'TODOS' ? orcamentos : orcamentos.filter((o) => o.status === filtro);
+
   const formatarData = (iso: string) =>
     new Date(iso).toLocaleDateString('pt-BR');
 
@@ -64,12 +71,29 @@ export default function AdminPedidos() {
         </p>
       </div>
 
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar pedidos por status">
+        {statusFiltro.map((s) => (
+          <button
+            key={s}
+            onClick={() => setFiltro(s)}
+            aria-pressed={filtro === s}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              filtro === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {s.replace('_', ' ')} ({contar(s)})
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {isCarregando ? (
             <div className="p-8 text-center text-gray-500">Carregando...</div>
-          ) : orcamentos.length === 0 ? (
+          ) : lista.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              Nenhum pedido registrado ainda.
+              {orcamentos.length === 0
+                ? 'Nenhum pedido registrado ainda.'
+                : 'Nenhum pedido com esse status.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -87,7 +111,7 @@ export default function AdminPedidos() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orcamentos.map((o) => (
+                  {lista.map((o) => (
                     <>
                       <tr key={o.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-5 font-mono text-sm font-semibold text-gray-700">

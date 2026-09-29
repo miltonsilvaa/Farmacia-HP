@@ -28,7 +28,7 @@ export default function Layout() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap gap-y-3 justify-between items-center">
           {/* Logo */}
           <Link to="/" className="text-xl font-bold tracking-tight shrink-0">
-            Homeofórmula
+            Grupo Farmácia HP
           </Link>
 
           {/* Navegação central */}

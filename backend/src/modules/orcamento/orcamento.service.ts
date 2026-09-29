@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
+import { NOTIFICACAO_PORT, NotificacaoPort } from './core/ports/out/notificacao.port';
 
 @Injectable()
 export class OrcamentoService {
@@ -8,7 +9,15 @@ export class OrcamentoService {
     private readonly prisma: PrismaService,
     @Inject(STORAGE_PORT)
     private readonly storagePort: StoragePort,
+    @Inject(NOTIFICACAO_PORT)
+    private readonly notificacao: NotificacaoPort,
   ) {}
+
+  private async notificar(clienteId: string, pedidoId: string, status: string, preco?: unknown, mensagem?: string | null) {
+    const usuario = await this.prisma.usuario.findUnique({ where: { id: clienteId }, select: { email: true } });
+    if (!usuario) return;
+    void this.notificacao.notificarStatus({ email: usuario.email, pedidoId, status, preco: preco as any, mensagem });
+  }
 
   private async assinarUrl(arquivoReceitaUrl: string): Promise<string> {
     try {
@@ -45,7 +54,7 @@ export class OrcamentoService {
     const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
     if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
 
-    return this.prisma.orcamento.update({
+    const atualizado = await this.prisma.orcamento.update({
       where: { id },
       data: {
         status,
@@ -53,6 +62,8 @@ export class OrcamentoService {
         ...(respostaAdmin !== undefined && { respostaAdmin }),
       },
     });
+    await this.notificar(atualizado.clienteId, id, status, atualizado.preco, respostaAdmin);
+    return atualizado;
   }
 
   async listarPorUsuario(usuarioId: string) {
@@ -84,10 +95,12 @@ export class OrcamentoService {
 
     const novoStatus = acao === 'APROVAR' ? 'PRODUCAO' : 'CANCELADO';
 
-    return this.prisma.orcamento.update({
+    const atualizado = await this.prisma.orcamento.update({
       where: { id },
       data: { status: novoStatus },
     });
+    await this.notificar(usuarioId, id, novoStatus);
+    return atualizado;
   }
 
   async renovarPedido(pedidoAntigoId: string, usuarioId: string) {
@@ -111,6 +124,7 @@ export class OrcamentoService {
       },
     });
 
+    await this.notificar(usuarioId, novoPedido.id, 'PENDENTE');
     return { sucesso: true, novoId: novoPedido.id };
   }
 }

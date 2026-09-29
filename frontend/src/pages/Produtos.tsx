@@ -36,7 +36,7 @@ export default function Produtos() {
         </button>
       </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="bg-white shadow-md rounded-lg overflow-x-auto">
         <table className="min-w-full text-left">
           <thead className="bg-slate-800 text-white">
             <tr>
@@ -71,12 +71,12 @@ export default function Produtos() {
             <h2 className="text-2xl font-bold mb-6 text-gray-800">Cadastrar Novo Produto</h2>
             <form onSubmit={handleSalvarProduto} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Medicamento</label>
-                <input type="text" required value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="Ex: Paracetamol 750mg" />
+                <label htmlFor="produtos-campo-1" className="block text-sm font-medium text-gray-700 mb-1">Nome do Medicamento</label>
+                <input id="produtos-campo-1" type="text" required value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="Ex: Paracetamol 750mg" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <select required value={formData.categoria} onChange={(e) => setFormData({...formData, categoria: e.target.value})} className="w-full border border-gray-300 rounded-md p-2 bg-white">
+                <label htmlFor="produtos-campo-2" className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select id="produtos-campo-2" required value={formData.categoria} onChange={(e) => setFormData({...formData, categoria: e.target.value})} className="w-full border border-gray-300 rounded-md p-2 bg-white">
                   <option value="">Selecione...</option>
                   <option value="Analgésico">Analgésico</option>
                   <option value="Anti-inflamatório">Anti-inflamatório</option>
@@ -85,12 +85,12 @@ export default function Produtos() {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
-                  <input type="number" step="0.01" required value={formData.preco} onChange={(e) => setFormData({...formData, preco: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="0.00" />
+                  <label htmlFor="produtos-campo-3" className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
+                  <input id="produtos-campo-3" type="number" step="0.01" required value={formData.preco} onChange={(e) => setFormData({...formData, preco: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="0.00" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
-                  <input type="number" required value={formData.estoque} onChange={(e) => setFormData({...formData, estoque: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="0" />
+                  <label htmlFor="produtos-campo-4" className="block text-sm font-medium text-gray-700 mb-1">Estoque</label>
+                  <input id="produtos-campo-4" type="number" required value={formData.estoque} onChange={(e) => setFormData({...formData, estoque: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="0" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">

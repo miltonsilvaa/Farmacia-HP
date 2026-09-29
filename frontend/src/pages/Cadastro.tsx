@@ -50,7 +50,7 @@ export default function Cadastro() {
       <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-100 p-8">
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">HomeoFórmula</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">Grupo Farmácia HP</h1>
           <p className="text-gray-500">Crie sua conta para gerenciar orçamentos.</p>
         </div>
 
@@ -62,8 +62,8 @@ export default function Cadastro() {
 
         <form onSubmit={handleCadastro} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
-            <input
+            <label htmlFor="cadastro-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
+            <input id="cadastro-campo-1"
               type="email"
               required
               value={email}
@@ -74,8 +74,8 @@ export default function Cadastro() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
-            <input
+            <label htmlFor="cadastro-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
+            <input id="cadastro-campo-2"
               type="password"
               required
               value={senha}
@@ -86,8 +86,8 @@ export default function Cadastro() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Confirmar Senha</label>
-            <input
+            <label htmlFor="cadastro-campo-3" className="block text-sm font-semibold text-gray-700 mb-1">Confirmar Senha</label>
+            <input id="cadastro-campo-3"
               type="password"
               required
               value={confirmarSenha}

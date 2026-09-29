@@ -39,12 +39,17 @@ services:
     depends_on:
       - postgres
       - minio
+      - mailpit
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
 
   # Frontend React
   frontend:
@@ -58,6 +63,14 @@ services:
       - VITE_API_URL=http://localhost:${BACKEND_PORT}
     depends_on:
       - backend
+
+  # Mailpit - caixa de entrada de testes (http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit
+    container_name: homeoformula_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   # Adminer - Gerenciador do Banco (Lugar Certo)
   adminer:

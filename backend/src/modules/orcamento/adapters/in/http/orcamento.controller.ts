@@ -61,16 +61,23 @@ export class OrcamentoController {
   }
 
   @Post('receita')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const ok = file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf';
+        cb(ok ? null : new BadRequestException('Envie apenas imagem ou PDF.'), ok);
+      },
+    }),
+  )
   async enviarReceita(
     @UploadedFile() arquivo: Express.Multer.File,
-    @Body() body: { clienteId: string; observacoes?: string; itens?: string; familiarId?: string },
+    @Body() body: { observacoes?: string; itens?: string; familiarId?: string },
+    @Request() req: any,
   ) {
     if (!arquivo) {
       throw new BadRequestException('O arquivo da receita é obrigatório.');
-    }
-    if (!body.clienteId) {
-      throw new BadRequestException('A identificação do cliente é obrigatória.');
     }
 
     let itens: Array<{ produtoId: string; quantidade: number }> | undefined;
@@ -83,7 +90,7 @@ export class OrcamentoController {
     }
 
     const resultado = await this.enviarReceitaUseCase.executar({
-      clienteId: body.clienteId,
+      clienteId: req.user.id,
       nomeArquivo: arquivo.originalname,
       buffer: arquivo.buffer,
       mimetype: arquivo.mimetype,

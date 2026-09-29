@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 // Tipagens para manter o código seguro e organizado
 type Produto = { id: number; nome: string; preco: number; estoque: number };
@@ -40,9 +41,9 @@ export default function Vendas() {
   const totalCompra = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
 
   const finalizarVenda = () => {
-    if (carrinho.length === 0) return alert('Adicione produtos antes de finalizar!');
+    if (carrinho.length === 0) return toast.error('Adicione produtos antes de finalizar!');
     
-    alert(`Venda finalizada com sucesso!\nTotal pago: R$ ${totalCompra.toFixed(2).replace('.', ',')}`);
+    toast.success(`Venda finalizada! Total: R$ ${totalCompra.toFixed(2).replace('.', ',')}`);
     setCarrinho([]); // Limpa o carrinho após a venda
   };
 
@@ -52,13 +53,14 @@ export default function Vendas() {
     <div className="h-full flex flex-col">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Frente de Caixa (PDV)</h1>
 
-      <div className="flex gap-6 flex-1 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 items-stretch lg:items-start">
         
         {/* LADO ESQUERDO: Lista de Produtos */}
-        <div className="flex-[2] bg-white p-6 rounded-lg shadow-md flex flex-col h-[70vh]">
+        <div className="flex-[2] bg-white p-6 rounded-lg shadow-md flex flex-col lg:h-[70vh]">
           <input 
             type="text" 
             placeholder="Buscar medicamento..." 
+            aria-label="Buscar medicamento"
             value={termoBusca}
             onChange={(e) => setTermoBusca(e.target.value)}
             className="w-full border border-gray-300 rounded-md p-3 mb-6 focus:ring-2 focus:ring-blue-500 outline-none text-lg"

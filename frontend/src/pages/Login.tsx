@@ -57,7 +57,7 @@ export default function Login() {
       <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-100 p-8">
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">HomeoFórmula</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">Grupo Farmácia HP</h1>
           <p className="text-gray-500">
             Acesse sua conta para gerenciar orçamentos e dependentes.
           </p>
@@ -71,8 +71,8 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
-            <input
+            <label htmlFor="login-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
+            <input id="login-campo-1"
               type="email"
               required
               value={email}
@@ -83,8 +83,8 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
-            <input
+            <label htmlFor="login-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
+            <input id="login-campo-2"
               type="password"
               required
               value={senha}

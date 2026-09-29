@@ -23,7 +23,7 @@ export default function AdminLayout() {
           {/* Logo + badge */}
           <Link to="/dashboard-admin" className="flex items-center gap-2 shrink-0">
             <span className="text-lg">💊</span>
-            <span className="text-lg font-bold tracking-tight">HomeoFórmula</span>
+            <span className="text-lg font-bold tracking-tight">Grupo Farmácia HP</span>
             <span className="ml-1 px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">
               Admin
             </span>
@@ -39,6 +39,9 @@ export default function AdminLayout() {
             </NavLink>
             <NavLink to="/admin/pedidos" className={navClass}>
               Todos os Pedidos
+            </NavLink>
+            <NavLink to="/admin/relatorios" className={navClass}>
+              Relatórios
             </NavLink>
           </nav>
 

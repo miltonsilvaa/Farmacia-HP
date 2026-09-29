@@ -255,10 +255,10 @@ export default function DashboardAdmin() {
 
               {/* Preço */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label htmlFor="dashboardadmin-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">
                   Preço da Manipulação (R$)
                 </label>
-                <input
+                <input id="dashboardadmin-campo-1"
                   type="number"
                   min="0"
                   step="0.01"
@@ -271,10 +271,10 @@ export default function DashboardAdmin() {
 
               {/* Resposta */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label htmlFor="dashboardadmin-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">
                   Observações ao Cliente (Opcional)
                 </label>
-                <textarea
+                <textarea id="dashboardadmin-campo-2"
                   rows={3}
                   value={respostaInput}
                   onChange={(e) => setRespostaInput(e.target.value)}

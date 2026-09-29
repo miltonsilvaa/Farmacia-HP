@@ -255,8 +255,8 @@ export default function AdminProdutos() {
             <form onSubmit={handleSalvar} className="p-6 flex flex-col gap-5">
               {/* Nome */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Nome *</label>
-                <input
+                <label htmlFor="adminprodutos-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">Nome *</label>
+                <input id="adminprodutos-campo-1"
                   type="text"
                   required
                   value={form.nome}
@@ -268,8 +268,8 @@ export default function AdminProdutos() {
 
               {/* Descrição */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Descrição</label>
-                <textarea
+                <label htmlFor="adminprodutos-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">Descrição</label>
+                <textarea id="adminprodutos-campo-2"
                   rows={2}
                   value={form.descricao}
                   onChange={campo('descricao')}
@@ -281,8 +281,8 @@ export default function AdminProdutos() {
               {/* Preço + Estoque */}
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Preço (R$) *</label>
-                  <input
+                  <label htmlFor="adminprodutos-campo-3" className="block text-sm font-semibold text-gray-700 mb-1">Preço (R$) *</label>
+                  <input id="adminprodutos-campo-3"
                     type="number"
                     required
                     min="0"
@@ -294,8 +294,8 @@ export default function AdminProdutos() {
                   />
                 </div>
                 <div className="w-32">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Estoque</label>
-                  <input
+                  <label htmlFor="adminprodutos-campo-4" className="block text-sm font-semibold text-gray-700 mb-1">Estoque</label>
+                  <input id="adminprodutos-campo-4"
                     type="number"
                     min="0"
                     value={form.estoque}
@@ -307,8 +307,8 @@ export default function AdminProdutos() {
 
               {/* URL da imagem */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">URL da Imagem</label>
-                <input
+                <label htmlFor="adminprodutos-campo-5" className="block text-sm font-semibold text-gray-700 mb-1">URL da Imagem</label>
+                <input id="adminprodutos-campo-5"
                   type="url"
                   value={form.imagemUrl}
                   onChange={campo('imagemUrl')}
