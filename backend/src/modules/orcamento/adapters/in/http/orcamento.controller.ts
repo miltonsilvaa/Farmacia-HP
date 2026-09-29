@@ -18,6 +18,7 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ErpService } from '../../../erp.service';
+import { LembreteRecompraService } from '../../../lembrete-recompra.service';
 import { CONTENT_TYPE } from '../../../core/erp/erp-serializador';
 import { JwtAuthGuard } from '../../../../auth/core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/core/guards/roles.guard';
@@ -37,6 +38,8 @@ export class OrcamentoController {
     private readonly orcamentoService: OrcamentoService,
 
     private readonly erpService: ErpService,
+
+    private readonly lembreteRecompra: LembreteRecompraService,
   ) {}
 
   @Get('admin')
@@ -59,6 +62,14 @@ export class OrcamentoController {
       body.preco,
       body.respostaAdmin,
     );
+  }
+
+  // Roda na hora o job diário de lembrete de recompra (útil para teste/demonstração)
+  @Post('admin/lembretes/executar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async executarLembretes() {
+    return this.lembreteRecompra.enviarLembretes();
   }
 
   // Reenvio manual ao ERP (ex.: depois de uma falha)

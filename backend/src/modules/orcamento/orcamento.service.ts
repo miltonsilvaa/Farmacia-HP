@@ -7,13 +7,14 @@ import { FamiliarService } from '../familiar/familiar.service';
 import { ErpService } from './erp.service';
 
 // Status em que o pedido já foi concluído e pode ser refeito com 1 clique
-const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO'];
+export const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO', 'ENTREGUE'];
 
 // Transições que a equipe da farmácia pode fazer: status novo → status de origem aceitos
 const TRANSICOES_ADMIN: Record<string, string[]> = {
   AGUARDANDO_PAGAMENTO: ['PENDENTE', 'AGUARDANDO_PAGAMENTO'],
   RECUSADO: ['PENDENTE', 'AGUARDANDO_PAGAMENTO'],
-  FINALIZADO: ['PRODUCAO'],
+  FINALIZADO: ['PRODUCAO'], // pronto para retirada/envio
+  ENTREGUE: ['FINALIZADO'],
 };
 
 @Injectable()
@@ -167,7 +168,7 @@ export class OrcamentoService {
     const pedidoOriginal = await this.buscarComAcesso(pedidoAntigoId, usuarioId);
 
     if (!STATUS_RENOVAVEIS.includes(pedidoOriginal.status)) {
-      throw new BadRequestException('Só é possível renovar pedidos em produção ou finalizados.');
+      throw new BadRequestException('Só é possível renovar pedidos aprovados pelo cliente.');
     }
 
     const produtosAtivos = await this.prisma.produto.findMany({

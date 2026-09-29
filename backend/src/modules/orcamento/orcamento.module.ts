@@ -15,6 +15,7 @@ import { EmailNotificacaoAdapter } from './adapters/out/notificacao/email-notifi
 
 import { FamiliarModule } from '../familiar/familiar.module';
 import { ErpService } from './erp.service';
+import { LembreteRecompraService } from './lembrete-recompra.service';
 import { ERP_PORT } from './core/ports/out/erp.port';
 import { HttpErpAdapter } from './adapters/out/erp/http-erp.adapter';
 import { ArquivoErpAdapter } from './adapters/out/erp/arquivo-erp.adapter';
@@ -25,6 +26,7 @@ import { ArquivoErpAdapter } from './adapters/out/erp/arquivo-erp.adapter';
   providers: [
     OrcamentoService,
     ErpService,
+    LembreteRecompraService,
     // Com ERP_URL envia por HTTP; sem ela, grava arquivos na pasta de saída
     { provide: ERP_PORT, useClass: process.env.ERP_URL ? HttpErpAdapter : ArquivoErpAdapter },
     { provide: ENVIAR_RECEITA_USE_CASE, useClass: EnviarReceitaUseCase },

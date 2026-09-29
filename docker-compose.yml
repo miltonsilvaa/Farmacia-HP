@@ -57,6 +57,9 @@ services:
       - ERP_TOKEN=${ERP_TOKEN:-}
       - ERP_FORMATO=${ERP_FORMATO:-json}
       - ERP_PASTA_SAIDA=/usr/src/app/erp-saida
+      # Lembrete de recompra: link do e-mail e dias após o pedido
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT}
+      - LEMBRETE_RECOMPRA_DIAS=${LEMBRETE_RECOMPRA_DIAS:-25}
     volumes:
       - ./backend/erp-saida:/usr/src/app/erp-saida
 
@@ -70,6 +73,8 @@ services:
       - "${FRONTEND_PORT}:5173"
     environment:
       - VITE_API_URL=http://localhost:${BACKEND_PORT}
+      # WhatsApp da farmácia com DDI+DDD, só dígitos (vazio esconde o botão)
+      - VITE_WHATSAPP_FARMACIA=${WHATSAPP_FARMACIA:-}
     depends_on:
       - backend
 

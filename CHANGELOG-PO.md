@@ -60,3 +60,17 @@
    - Resultado fica no pedido (Enviado/Falhou + motivo); admin pode reenviar e baixar o JSON/XML de qualquer pedido
    - Falha no ERP não desfaz a aprovação do cliente
 5. MinIO: links assinados agora usam o host público (`MINIO_PUBLIC_ENDPOINT`, padrão `localhost`). Dentro do Docker eles eram gerados com `minio:9000`, que o navegador não abre
+
+# Extras para reduzir o WhatsApp (28/09/2026)
+
+> **Banco:** novo campo `lembreteRecompraEm` em `orcamentos` (`npx prisma db push`). **Dependência nova:** `@nestjs/schedule`. Rebuildar o backend: `docker compose up --build`.
+
+1. Linha do tempo do pedido ("Onde está meu remédio?"): barra de 4 etapas em Meus Pedidos — Solicitado → Em manipulação → Pronto para retirada/envio → Entregue
+   - Novo status `ENTREGUE`; admin tem "Marcar pronto" (Em produção → Pronto) e "Marcar entregue" (Pronto → Entregue), cada um com e-mail ao cliente
+   - Acessível: lista ordenada com `aria-current="step"` e texto para leitor de tela em cada etapa
+2. Lembrete automático de recompra: job diário às 9h (horário de Brasília) envia "Seu medicamento está acabando?" `LEMBRETE_RECOMPRA_DIAS` (padrão 25) dias após um pedido aprovado
+   - Não envia se já existe pedido mais novo para o mesmo paciente; cada pedido gera no máximo um lembrete
+   - Só considera pedidos de até 15 dias além do prazo (evita avalanche de e-mails no primeiro dia)
+   - O botão do e-mail abre Meus Pedidos com um aviso "Renovar agora" (nada é renovado só por clicar no link)
+   - Admin pode rodar na hora: `POST /orcamentos/admin/lembretes/executar`
+3. Suporte via WhatsApp com contexto: link discreto em cada pedido abre `wa.me` com "Olá, preciso de ajuda com o Pedido #XXXX". Número em `WHATSAPP_FARMACIA` (vazio esconde o botão)

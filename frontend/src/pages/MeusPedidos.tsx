@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../lib/api';
+import LinhaDoTempoPedido from '../components/LinhaDoTempoPedido';
+import SuporteWhatsApp from '../components/SuporteWhatsApp';
 
 interface PedidoItem {
   id: string;
@@ -24,13 +26,14 @@ interface Pedido {
   solicitadoPor: string | null;
 }
 
-const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO'];
+const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO', 'ENTREGUE'];
 
 const badgeClass: Record<string, string> = {
   PENDENTE: 'bg-yellow-100 text-yellow-700',
   AGUARDANDO_PAGAMENTO: 'bg-blue-100 text-blue-700',
   PRODUCAO: 'bg-green-100 text-green-700',
   FINALIZADO: 'bg-emerald-100 text-emerald-800',
+  ENTREGUE: 'bg-teal-100 text-teal-800',
   CANCELADO: 'bg-gray-100 text-gray-500',
   RECUSADO: 'bg-red-100 text-red-700',
 };
@@ -39,7 +42,8 @@ const badgeLabel: Record<string, string> = {
   PENDENTE: 'Pendente',
   AGUARDANDO_PAGAMENTO: 'Orçamento Disponível',
   PRODUCAO: 'Em Produção',
-  FINALIZADO: 'Finalizado',
+  FINALIZADO: 'Pronto para retirada',
+  ENTREGUE: 'Entregue',
   CANCELADO: 'Cancelado',
   RECUSADO: 'Recusado',
 };
@@ -145,6 +149,9 @@ function PainelAcao({
 
 export default function MeusPedidos() {
   const navigate = useNavigate();
+  // Vindo do e-mail de lembrete de recompra: /meus-pedidos?renovar=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const renovarId = searchParams.get('renovar');
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [isRespondendo, setIsRespondendo] = useState<string | null>(null);
   const [isRenovando, setIsRenovando] = useState<string | null>(null);
@@ -215,6 +222,23 @@ export default function MeusPedidos() {
     }
   };
 
+  const pedidoLembrete = renovarId
+    ? pedidos.find((p) => p.id === renovarId && STATUS_RENOVAVEIS.includes(p.status))
+    : undefined;
+
+  useEffect(() => {
+    if (pedidoLembrete) {
+      document.getElementById(`pedido-${pedidoLembrete.id}`)?.scrollIntoView({ block: 'center' });
+    }
+  }, [pedidoLembrete]);
+
+  const fecharLembrete = () => setSearchParams({}, { replace: true });
+
+  const renovarDoLembrete = async (id: string) => {
+    await handleRenovar(id);
+    fecharLembrete();
+  };
+
   const formatarData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 
   return (
@@ -225,6 +249,37 @@ export default function MeusPedidos() {
           Acompanhe seus orçamentos ou renove medicamentos de uso contínuo com um clique.
         </p>
       </div>
+
+      {pedidoLembrete && (
+        <div
+          role="region"
+          aria-label="Lembrete de renovação"
+          className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div>
+            <p className="font-bold text-emerald-900 text-lg">Seu medicamento está acabando?</p>
+            <p className="text-sm text-emerald-800 mt-1">
+              Renove o pedido #{pedidoLembrete.id.substring(0, 8).toUpperCase()} com a mesma receita
+              e os mesmos produtos.
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => renovarDoLembrete(pedidoLembrete.id)}
+              disabled={isRenovando === pedidoLembrete.id}
+              className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isRenovando === pedidoLembrete.id ? 'Enviando...' : 'Renovar agora'}
+            </button>
+            <button
+              onClick={fecharLembrete}
+              className="px-4 py-3 text-emerald-800 hover:bg-emerald-100 font-semibold rounded-lg transition-colors"
+            >
+              Agora não
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {isCarregando ? (
@@ -244,7 +299,10 @@ export default function MeusPedidos() {
             {pedidos.map((pedido) => (
               <div
                 key={pedido.id}
-                className="p-6 flex flex-col gap-4 hover:bg-gray-50 transition-colors"
+                id={`pedido-${pedido.id}`}
+                className={`p-6 flex flex-col gap-4 transition-colors ${
+                  pedidoLembrete?.id === pedido.id ? 'bg-emerald-50/60' : 'hover:bg-gray-50'
+                }`}
               >
                 {/* Cabeçalho do card */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -283,6 +341,11 @@ export default function MeusPedidos() {
                   </span>
                 </div>
 
+                {/* Onde está meu remédio? */}
+                <div className="ml-0 md:ml-14">
+                  <LinhaDoTempoPedido status={pedido.status} />
+                </div>
+
                 {/* Painel condicional por status */}
                 <PainelAcao
                   pedido={pedido}
@@ -313,6 +376,10 @@ export default function MeusPedidos() {
                       {anexo.nomeArquivo}
                     </a>
                   ))}
+                </div>
+
+                <div className="ml-0 md:ml-14">
+                  <SuporteWhatsApp pedidoId={pedido.id} />
                 </div>
 
                 {/* Itens do pedido — sempre visíveis quando presentes */}

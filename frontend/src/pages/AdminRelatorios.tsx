@@ -11,7 +11,7 @@ interface Orcamento {
   familiar: { nome: string } | null;
 }
 
-const APROVADOS = ['PRODUCAO', 'FINALIZADO'];
+const APROVADOS = ['PRODUCAO', 'FINALIZADO', 'ENTREGUE'];
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function AdminRelatorios() {

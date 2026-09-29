@@ -56,6 +56,9 @@ model Orcamento {
   erpEnviadoEm      DateTime?
   erpErro           String?
 
+  // Lembrete de recompra (uso contínuo) já enviado para este pedido
+  lembreteRecompraEm DateTime?
+
   usuario           Usuario          @relation(fields: [clienteId], references: [id])
   familiar          Familiar?        @relation(fields: [familiarId], references: [id])
   itens             OrcamentoItem[]

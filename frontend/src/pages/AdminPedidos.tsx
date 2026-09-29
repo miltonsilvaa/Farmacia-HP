@@ -34,6 +34,7 @@ const badgeClass: Record<string, string> = {
   RECUSADO: 'bg-red-100 text-red-700',
   CANCELADO: 'bg-gray-100 text-gray-600',
   FINALIZADO: 'bg-green-100 text-green-800',
+  ENTREGUE: 'bg-teal-100 text-teal-800',
 };
 
 const statusLabel: Record<string, string> = {
@@ -41,7 +42,8 @@ const statusLabel: Record<string, string> = {
   PENDENTE: 'Pendente',
   AGUARDANDO_PAGAMENTO: 'Aguardando pagamento',
   PRODUCAO: 'Em produção',
-  FINALIZADO: 'Finalizado',
+  FINALIZADO: 'Pronto',
+  ENTREGUE: 'Entregue',
   RECUSADO: 'Recusado',
   CANCELADO: 'Cancelado',
 };
@@ -52,8 +54,8 @@ export default function AdminPedidos() {
   const [expandido, setExpandido] = useState<string | null>(null);
   const [filtro, setFiltro] = useState('TODOS');
 
-  const [finalizando, setFinalizando] = useState<OrcamentoAdmin | null>(null);
-  const [isFinalizando, setIsFinalizando] = useState(false);
+  const [mudanca, setMudanca] = useState<{ pedido: OrcamentoAdmin; para: 'FINALIZADO' | 'ENTREGUE' } | null>(null);
+  const [isMudando, setIsMudando] = useState(false);
   const [processandoErp, setProcessandoErp] = useState<string | null>(null);
 
   const statusFiltro = Object.keys(statusLabel);
@@ -81,25 +83,30 @@ export default function AdminPedidos() {
   const atualizarPedido = (id: string, dados: Partial<OrcamentoAdmin>) =>
     setOrcamentos((prev) => prev.map((o) => (o.id === id ? { ...o, ...dados } : o)));
 
-  const handleFinalizar = async () => {
-    if (!finalizando) return;
-    setIsFinalizando(true);
+  const handleMudarStatus = async () => {
+    if (!mudanca) return;
+    const { pedido, para } = mudanca;
+    setIsMudando(true);
     try {
-      const res = await apiFetch(`/orcamentos/admin/${finalizando.id}`, {
+      const res = await apiFetch(`/orcamentos/admin/${pedido.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'FINALIZADO' }),
+        body: JSON.stringify({ status: para }),
       });
       if (!res.ok) {
         const erro = await res.json().catch(() => ({}));
         throw new Error(erro.message);
       }
-      atualizarPedido(finalizando.id, { status: 'FINALIZADO' });
-      toast.success('Pedido finalizado. O cliente foi avisado por e-mail.');
+      atualizarPedido(pedido.id, { status: para });
+      toast.success(
+        para === 'FINALIZADO'
+          ? 'Pedido marcado como pronto. O cliente foi avisado por e-mail.'
+          : 'Pedido marcado como entregue.',
+      );
     } catch (e) {
-      toast.error((e as Error).message || 'Não foi possível finalizar o pedido.');
+      toast.error((e as Error).message || 'Não foi possível atualizar o pedido.');
     } finally {
-      setIsFinalizando(false);
-      setFinalizando(null);
+      setIsMudando(false);
+      setMudanca(null);
     }
   };
 
@@ -289,15 +296,17 @@ export default function AdminPedidos() {
                         </td>
                         <td className="py-4 px-5">
                           <div className="flex flex-col items-end gap-1">
-                            {o.status === 'PRODUCAO' && (
+                            {(o.status === 'PRODUCAO' || o.status === 'FINALIZADO') && (
                               <button
-                                onClick={() => setFinalizando(o)}
+                                onClick={() =>
+                                  setMudanca({ pedido: o, para: o.status === 'PRODUCAO' ? 'FINALIZADO' : 'ENTREGUE' })
+                                }
                                 className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap"
                               >
-                                Marcar finalizado
+                                {o.status === 'PRODUCAO' ? 'Marcar pronto' : 'Marcar entregue'}
                               </button>
                             )}
-                            {['PRODUCAO', 'FINALIZADO'].includes(o.status) && (
+                            {['PRODUCAO', 'FINALIZADO', 'ENTREGUE'].includes(o.status) && (
                               <button
                                 onClick={() => handleEnviarErp(o.id)}
                                 disabled={processandoErp === o.id}
@@ -338,14 +347,16 @@ export default function AdminPedidos() {
       </div>
 
       <ConfirmDialog
-        aberto={finalizando !== null}
-        titulo="Finalizar pedido"
-        mensagem={`Confirmar que o pedido #${finalizando?.id.substring(0, 8).toUpperCase() ?? ''} está pronto? O cliente receberá um e-mail.`}
-        textoConfirmar="Finalizar"
+        aberto={mudanca !== null}
+        titulo={mudanca?.para === 'ENTREGUE' ? 'Confirmar entrega' : 'Pedido pronto'}
+        mensagem={`Confirmar que o pedido #${mudanca?.pedido.id.substring(0, 8).toUpperCase() ?? ''} ${
+          mudanca?.para === 'ENTREGUE' ? 'foi entregue' : 'está pronto para retirada/envio'
+        }? O cliente receberá um e-mail.`}
+        textoConfirmar={mudanca?.para === 'ENTREGUE' ? 'Marcar entregue' : 'Marcar pronto'}
         variante="primario"
-        processando={isFinalizando}
-        onConfirmar={handleFinalizar}
-        onCancelar={() => setFinalizando(null)}
+        processando={isMudando}
+        onConfirmar={handleMudarStatus}
+        onCancelar={() => setMudanca(null)}
       />
     </div>
   );
