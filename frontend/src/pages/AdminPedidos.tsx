@@ -1,7 +1,36 @@
-import { useState, useEffect, Fragment } from 'react';
-import toast from 'react-hot-toast';
-import { apiFetch } from '../lib/api';
-import ConfirmDialog from '../components/ConfirmDialog';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+  CloudUpload,
+  Download,
+  FileText,
+  Loader2,
+  PackageCheck,
+  Paperclip,
+  Search,
+  Truck,
+  ClipboardList,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+import { formatarData, formatarMoeda, numeroPedido } from '@/lib/format';
+import { PONTO_COR, STATUS } from '@/lib/status';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import StatusBadge from '@/components/StatusBadge';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import EstadoVazio from '@/components/EstadoVazio';
+import { LinhasCarregando } from '@/components/Carregando';
 
 interface OrcamentoItem {
   id: string;
@@ -28,61 +57,87 @@ interface OrcamentoAdmin {
   erpErro: string | null;
 }
 
-const badgeClass: Record<string, string> = {
-  PENDENTE: 'bg-orange-100 text-orange-700',
-  AGUARDANDO_PAGAMENTO: 'bg-blue-100 text-blue-700',
-  PRODUCAO: 'bg-emerald-100 text-emerald-700',
-  RECUSADO: 'bg-red-100 text-red-700',
-  CANCELADO: 'bg-gray-100 text-gray-600',
-  FINALIZADO: 'bg-green-100 text-green-800',
-  ENTREGUE: 'bg-teal-100 text-teal-800',
+// Ordem dos filtros = ordem do fluxo do pedido
+const FILTROS = ['TODOS', 'PENDENTE', 'AGUARDANDO_PAGAMENTO', 'PRODUCAO', 'FINALIZADO', 'ENTREGUE', 'RECUSADO', 'CANCELADO'];
+const PROXIMO: Record<string, { para: 'FINALIZADO' | 'ENTREGUE'; rotulo: string; icone: typeof PackageCheck }> = {
+  PRODUCAO: { para: 'FINALIZADO', rotulo: 'Marcar pronto', icone: PackageCheck },
+  FINALIZADO: { para: 'ENTREGUE', rotulo: 'Marcar entregue', icone: Truck },
 };
+const COM_ERP = ['PRODUCAO', 'FINALIZADO', 'ENTREGUE'];
 
-const statusLabel: Record<string, string> = {
-  TODOS: 'Todos',
-  PENDENTE: 'Pendente',
-  AGUARDANDO_PAGAMENTO: 'Aguardando pagamento',
-  PRODUCAO: 'Em produção',
-  FINALIZADO: 'Pronto',
-  ENTREGUE: 'Entregue',
-  RECUSADO: 'Recusado',
-  CANCELADO: 'Cancelado',
-};
+// Botão do próximo passo do fluxo (Em manipulação → Pronto → Entregue)
+function BotaoProximo({
+  o,
+  onClick,
+}: {
+  o: OrcamentoAdmin;
+  onClick: (para: 'FINALIZADO' | 'ENTREGUE') => void;
+}) {
+  const proximo = PROXIMO[o.status];
+  if (!proximo) return null;
+  const Icone = proximo.icone;
+  return (
+    <Button size="sm" onClick={() => onClick(proximo.para)}>
+      <Icone aria-hidden="true" />
+      {proximo.rotulo}
+    </Button>
+  );
+}
+
+function paciente(o: OrcamentoAdmin) {
+  return o.familiar ? `${o.familiar.nome} (${o.familiar.parentesco})` : 'Titular';
+}
 
 export default function AdminPedidos() {
-  const [orcamentos, setOrcamentos] = useState<OrcamentoAdmin[]>([]);
-  const [isCarregando, setIsCarregando] = useState(true);
-  const [expandido, setExpandido] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState('TODOS');
+  const [orcamentos, setOrcamentos] = useState<OrcamentoAdmin[] | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtro = searchParams.get('status') ?? 'TODOS';
+  const [busca, setBusca] = useState('');
 
+  const [detalhe, setDetalhe] = useState<OrcamentoAdmin | null>(null);
+  const [posologiaTexto, setPosologiaTexto] = useState('');
+  const [isSalvandoPosologia, setIsSalvandoPosologia] = useState(false);
   const [mudanca, setMudanca] = useState<{ pedido: OrcamentoAdmin; para: 'FINALIZADO' | 'ENTREGUE' } | null>(null);
   const [isMudando, setIsMudando] = useState(false);
   const [processandoErp, setProcessandoErp] = useState<string | null>(null);
 
-  const statusFiltro = Object.keys(statusLabel);
-  const contar = (s: string) =>
-    s === 'TODOS' ? orcamentos.length : orcamentos.filter((o) => o.status === s).length;
-
   useEffect(() => {
-    const carregar = async () => {
-      try {
-        const res = await apiFetch('/orcamentos/admin');
-        if (res.ok) {
-          setOrcamentos(await res.json());
-        } else {
-          toast.error('Erro ao carregar pedidos.');
-        }
-      } catch {
-        toast.error('Erro de conexão.');
-      } finally {
-        setIsCarregando(false);
-      }
-    };
-    carregar();
+    apiFetch('/orcamentos/admin')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setOrcamentos)
+      .catch(() => {
+        setOrcamentos([]);
+        toast.error('Não foi possível carregar os pedidos.');
+      });
   }, []);
 
-  const atualizarPedido = (id: string, dados: Partial<OrcamentoAdmin>) =>
-    setOrcamentos((prev) => prev.map((o) => (o.id === id ? { ...o, ...dados } : o)));
+  const atualizarPedido = (id: string, dados: Partial<OrcamentoAdmin>) => {
+    setOrcamentos((prev) => prev?.map((o) => (o.id === id ? { ...o, ...dados } : o)) ?? prev);
+    setDetalhe((d) => (d?.id === id ? { ...d, ...dados } : d));
+  };
+
+  const mudarFiltro = (status: string) =>
+    setSearchParams(status === 'TODOS' ? {} : { status }, { replace: true });
+
+  const contar = (s: string) =>
+    s === 'TODOS' ? (orcamentos?.length ?? 0) : (orcamentos ?? []).filter((o) => o.status === s).length;
+
+  const lista = useMemo(() => {
+    const termo = busca.trim().toLowerCase().replace(/^#/, '');
+    return (orcamentos ?? []).filter(
+      (o) =>
+        (filtro === 'TODOS' || o.status === filtro) &&
+        (!termo ||
+          numeroPedido(o.id).toLowerCase().includes(termo) ||
+          o.usuario.email.toLowerCase().includes(termo) ||
+          o.familiar?.nome.toLowerCase().includes(termo)),
+    );
+  }, [orcamentos, filtro, busca]);
+
+  const abrirDetalhe = (o: OrcamentoAdmin) => {
+    setDetalhe(o);
+    setPosologiaTexto(o.posologia ?? '');
+  };
 
   const handleMudarStatus = async () => {
     if (!mudanca) return;
@@ -99,9 +154,7 @@ export default function AdminPedidos() {
       }
       atualizarPedido(pedido.id, { status: para });
       toast.success(
-        para === 'FINALIZADO'
-          ? 'Pedido marcado como pronto. O cliente foi avisado por e-mail.'
-          : 'Pedido marcado como entregue.',
+        para === 'FINALIZADO' ? 'Pedido pronto. O cliente foi avisado por e-mail.' : 'Pedido marcado como entregue.',
       );
     } catch (e) {
       toast.error((e as Error).message || 'Não foi possível atualizar o pedido.');
@@ -111,29 +164,19 @@ export default function AdminPedidos() {
     }
   };
 
-  const [editandoPosologia, setEditandoPosologia] = useState<OrcamentoAdmin | null>(null);
-  const [posologiaTexto, setPosologiaTexto] = useState('');
-  const [isSalvandoPosologia, setIsSalvandoPosologia] = useState(false);
-
-  const abrirPosologia = (o: OrcamentoAdmin) => {
-    setEditandoPosologia(o);
-    setPosologiaTexto(o.posologia ?? '');
-  };
-
   const handleSalvarPosologia = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editandoPosologia) return;
+    if (!detalhe) return;
     setIsSalvandoPosologia(true);
     try {
-      const res = await apiFetch(`/orcamentos/admin/${editandoPosologia.id}/posologia`, {
+      const res = await apiFetch(`/orcamentos/admin/${detalhe.id}/posologia`, {
         method: 'PATCH',
         body: JSON.stringify({ posologia: posologiaTexto }),
       });
       if (!res.ok) throw new Error();
       const { posologia } = await res.json();
-      atualizarPedido(editandoPosologia.id, { posologia });
-      toast.success('Modo de uso salvo. O cliente já vê no histórico do pedido.');
-      setEditandoPosologia(null);
+      atualizarPedido(detalhe.id, { posologia });
+      toast.success('Modo de uso salvo. O cliente já vê no pedido.');
     } catch {
       toast.error('Não foi possível salvar o modo de uso.');
     } finally {
@@ -148,13 +191,10 @@ export default function AdminPedidos() {
       if (!res.ok) throw new Error();
       const resultado = await res.json();
       atualizarPedido(id, resultado);
-      if (resultado.erpStatus === 'ENVIADO') {
-        toast.success('Pedido enviado ao ERP.');
-      } else {
-        toast.error(`Falha no envio ao ERP: ${resultado.erpErro ?? 'erro desconhecido'}`);
-      }
+      if (resultado.erpStatus === 'ENVIADO') toast.success('Pedido enviado ao ERP.');
+      else toast.error(`Falha no envio ao ERP: ${resultado.erpErro ?? 'erro desconhecido'}`);
     } catch {
-      toast.error('Erro de conexão ao enviar ao ERP.');
+      toast.error('Sem conexão para enviar ao ERP.');
     } finally {
       setProcessandoErp(null);
     }
@@ -168,7 +208,7 @@ export default function AdminPedidos() {
       const url = URL.createObjectURL(await res.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = `pedido-${id.substring(0, 8).toUpperCase()}.${formato}`;
+      link.download = `pedido-${numeroPedido(id)}.${formato}`;
       link.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -176,270 +216,279 @@ export default function AdminPedidos() {
     }
   };
 
-  const lista = filtro === 'TODOS' ? orcamentos : orcamentos.filter((o) => o.status === filtro);
-
-  const formatarData = (iso: string) =>
-    new Date(iso).toLocaleDateString('pt-BR');
-
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">Histórico Completo</h2>
-        <p className="text-gray-500 text-sm mt-1">
-          {isCarregando ? '...' : `${orcamentos.length} pedido(s) encontrado(s)`}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar pedidos por status">
-        {statusFiltro.map((s) => (
-          <button
-            key={s}
-            onClick={() => setFiltro(s)}
-            aria-pressed={filtro === s}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-              filtro === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {statusLabel[s]} ({contar(s)})
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {isCarregando ? (
-            <div className="p-8 text-center text-gray-500">Carregando...</div>
-          ) : lista.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              {orcamentos.length === 0
-                ? 'Nenhum pedido registrado ainda.'
-                : 'Nenhum pedido com esse status.'}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pedido</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Paciente</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Data</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Preço</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Receita</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Itens</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">ERP</th>
-                    <th className="py-3 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lista.map((o) => (
-                    <Fragment key={o.id}>
-                      <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-5 font-mono text-sm font-semibold text-gray-700">
-                          #{o.id.substring(0, 8).toUpperCase()}
-                        </td>
-                        <td className="py-4 px-5 text-sm text-gray-600">{o.usuario.email}</td>
-                        <td className="py-4 px-5 text-sm text-gray-700">
-                          {o.familiar ? (
-                            <span>
-                              {o.familiar.nome}{' '}
-                              <span className="text-xs text-gray-400">({o.familiar.parentesco})</span>
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">Titular</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-5 text-sm text-gray-500">{formatarData(o.criadoEm)}</td>
-                        <td className="py-4 px-5">
-                          <span
-                            className={`px-2 py-1 text-xs font-bold rounded-full ${
-                              badgeClass[o.status] ?? 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {statusLabel[o.status] ?? o.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-5 text-sm font-medium text-green-700">
-                          {o.preco
-                            ? `R$ ${Number(o.preco).toFixed(2).replace('.', ',')}`
-                            : '—'}
-                        </td>
-                        <td className="py-4 px-5">
-                          <a
-                            href={o.arquivoReceitaUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm"
-                          >
-                            Ver arquivo
-                          </a>
-                          {o.anexos?.map((anexo, i) => (
-                            <a
-                              key={anexo.id}
-                              href={anexo.arquivoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={anexo.nomeArquivo}
-                              className="block text-blue-600 hover:underline text-xs mt-1"
-                            >
-                              Anexo {i + 1}
-                            </a>
-                          ))}
-                        </td>
-                        <td className="py-4 px-5">
-                          {o.itens && o.itens.length > 0 ? (
-                            <button
-                              onClick={() => setExpandido(expandido === o.id ? null : o.id)}
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              {o.itens.length} item(ns) {expandido === o.id ? '▲' : '▼'}
-                            </button>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-5 text-sm">
-                          {o.erpStatus === 'ENVIADO' && (
-                            <span
-                              className="px-2 py-1 text-xs font-bold rounded-full bg-green-100 text-green-700"
-                              title={o.erpEnviadoEm ? `Enviado em ${new Date(o.erpEnviadoEm).toLocaleString('pt-BR')}` : undefined}
-                            >
-                              Enviado
-                            </span>
-                          )}
-                          {o.erpStatus === 'ERRO' && (
-                            <span
-                              className="px-2 py-1 text-xs font-bold rounded-full bg-red-100 text-red-700"
-                              title={o.erpErro ?? undefined}
-                            >
-                              Falhou
-                            </span>
-                          )}
-                          {!o.erpStatus && <span className="text-gray-400">—</span>}
-                          <div className="flex gap-2 mt-1 text-xs">
-                            <button onClick={() => handleExportar(o.id, 'json')} className="text-blue-600 hover:underline">
-                              JSON
-                            </button>
-                            <button onClick={() => handleExportar(o.id, 'xml')} className="text-blue-600 hover:underline">
-                              XML
-                            </button>
-                          </div>
-                        </td>
-                        <td className="py-4 px-5">
-                          <div className="flex flex-col items-end gap-1">
-                            {(o.status === 'PRODUCAO' || o.status === 'FINALIZADO') && (
-                              <button
-                                onClick={() =>
-                                  setMudanca({ pedido: o, para: o.status === 'PRODUCAO' ? 'FINALIZADO' : 'ENTREGUE' })
-                                }
-                                className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors whitespace-nowrap"
-                              >
-                                {o.status === 'PRODUCAO' ? 'Marcar pronto' : 'Marcar entregue'}
-                              </button>
-                            )}
-                            {['PRODUCAO', 'FINALIZADO', 'ENTREGUE'].includes(o.status) && (
-                              <button
-                                onClick={() => handleEnviarErp(o.id)}
-                                disabled={processandoErp === o.id}
-                                className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 font-semibold rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
-                              >
-                                {processandoErp === o.id
-                                  ? 'Enviando...'
-                                  : o.erpStatus
-                                    ? 'Reenviar ao ERP'
-                                    : 'Enviar ao ERP'}
-                              </button>
-                            )}
-                            {!['RECUSADO', 'CANCELADO'].includes(o.status) && (
-                              <button
-                                onClick={() => abrirPosologia(o)}
-                                className="px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 font-semibold rounded-lg transition-colors whitespace-nowrap"
-                              >
-                                {o.posologia ? 'Editar modo de uso' : 'Adicionar modo de uso'}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                      {expandido === o.id && o.itens.length > 0 && (
-                        <tr key={`${o.id}-itens`} className="bg-blue-50">
-                          <td colSpan={10} className="px-8 py-3">
-                            <div className="flex flex-col gap-1">
-                              {o.itens.map((item) => (
-                                <div key={item.id} className="flex justify-between text-sm text-gray-700 max-w-md">
-                                  <span>{item.produto.nome} × {item.quantidade}</span>
-                                  <span className="text-gray-500">
-                                    R$ {(Number(item.precoUnitario) * item.quantidade).toFixed(2).replace('.', ',')}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-      </div>
-
-      {editandoPosologia && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <form
-            onSubmit={handleSalvarPosologia}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="posologia-titulo"
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-4"
-          >
-            <h2 id="posologia-titulo" className="text-lg font-bold text-gray-800">
-              Modo de uso — Pedido #{editandoPosologia.id.substring(0, 8).toUpperCase()}
-            </h2>
-            <div>
-              <label htmlFor="posologia-texto" className="block text-sm font-semibold text-gray-700 mb-1">
-                Posologia exibida ao cliente
-              </label>
-              <textarea
-                id="posologia-texto"
-                rows={4}
-                autoFocus
-                value={posologiaTexto}
-                onChange={(e) => setPosologiaTexto(e.target.value)}
-                disabled={isSalvandoPosologia}
-                placeholder="Ex: Tomar 10 gotas, 2 vezes ao dia, longe das refeições."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none disabled:bg-gray-100"
-              />
-              <p className="text-xs text-gray-500 mt-1">Deixe em branco para remover.</p>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => setEditandoPosologia(null)}
-                disabled={isSalvandoPosologia}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSalvandoPosologia}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isSalvandoPosologia ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
-          </form>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Pedidos</h1>
+          <p className="mt-1 text-lg text-muted-foreground">
+            {orcamentos === null ? 'Carregando…' : `${orcamentos.length} pedido(s) no total`}
+          </p>
         </div>
-      )}
+        <div className="relative w-full sm:w-80">
+          <Label htmlFor="busca-pedidos" className="sr-only">
+            Buscar por número, e-mail ou paciente
+          </Label>
+          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="busca-pedidos"
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Nº, e-mail ou paciente"
+            className="pl-12"
+          />
+        </div>
+      </div>
+
+      {/* Filtros rápidos por status */}
+      <div role="group" aria-label="Filtrar por status" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+        {FILTROS.map((s) => {
+          const ativo = filtro === s;
+          const info = s === 'TODOS' ? null : STATUS[s];
+          return (
+            <button
+              key={s}
+              onClick={() => mudarFiltro(s)}
+              aria-pressed={ativo}
+              className={cn(
+                'flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 px-4 font-bold whitespace-nowrap transition-colors',
+                ativo ? 'border-foreground bg-foreground text-card' : 'border-border bg-card hover:border-foreground/40',
+              )}
+            >
+              {info && (
+                <span aria-hidden="true" className={cn('size-3 rounded-full', PONTO_COR[info.cor], ativo && 'ring-2 ring-card')} />
+              )}
+              {info ? info.rotuloAdmin : 'Todos'}
+              <span className={cn('tabular', ativo ? 'text-card/80' : 'text-muted-foreground')}>{contar(s)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+        {orcamentos === null ? (
+          <LinhasCarregando />
+        ) : lista.length === 0 ? (
+          <EstadoVazio
+            icone={ClipboardList}
+            titulo={orcamentos.length === 0 ? 'Nenhum pedido ainda' : 'Nada encontrado'}
+            texto={
+              orcamentos.length === 0
+                ? 'Os pedidos dos clientes aparecem aqui assim que chegarem.'
+                : 'Tente outro filtro ou outra busca.'
+            }
+          />
+        ) : (
+          <>
+          {/* Celular e tablet: um cartão por pedido, com status e ação sempre visíveis */}
+          <ul className="divide-y lg:hidden">
+            {lista.map((o) => (
+              <li key={o.id} className="flex flex-col gap-3 px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="tabular font-bold">
+                      #{numeroPedido(o.id)} <span className="font-normal text-muted-foreground">· {formatarData(o.criadoEm)}</span>
+                    </p>
+                    <p className="font-bold">{paciente(o)}</p>
+                    <p className="truncate text-sm text-muted-foreground">{o.usuario.email}</p>
+                  </div>
+                  <p className="tabular text-lg font-bold">{formatarMoeda(o.preco)}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={o.status} admin />
+                  {o.erpStatus === 'ERRO' && <span className="text-sm font-bold text-status-vermelho">ERP falhou</span>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <BotaoProximo o={o} onClick={(para) => setMudanca({ pedido: o, para })} />
+                  <Button size="sm" variant="outline" onClick={() => abrirDetalhe(o)}>
+                    Detalhes
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden lg:block">
+            <table className="w-full table-fixed border-collapse text-left">
+              <colgroup>
+                <col className="w-[9rem]" />
+                <col />
+                <col className="w-[13rem]" />
+                <col className="w-[8.5rem]" />
+                <col className="w-[17rem]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b bg-muted/60 text-sm text-muted-foreground">
+                  <th scope="col" className="px-5 py-3 font-bold">Pedido</th>
+                  <th scope="col" className="px-5 py-3 font-bold">Paciente e cliente</th>
+                  <th scope="col" className="px-5 py-3 font-bold">Status</th>
+                  <th scope="col" className="py-3 pr-8 pl-5 text-right font-bold">Valor</th>
+                  <th scope="col" className="px-5 py-3 text-right font-bold">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lista.map((o) => (
+                  <tr key={o.id} className="border-b last:border-0 transition-colors hover:bg-muted/40">
+                    <td className="px-5 py-4">
+                      <p className="tabular font-bold">#{numeroPedido(o.id)}</p>
+                      <p className="text-sm whitespace-nowrap text-muted-foreground">{formatarData(o.criadoEm)}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="truncate font-bold">{paciente(o)}</p>
+                      <p className="truncate text-sm text-muted-foreground">{o.usuario.email}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={o.status} admin />
+                      {o.erpStatus === 'ENVIADO' && <p className="mt-1 text-sm text-status-verde">ERP: enviado</p>}
+                      {o.erpStatus === 'ERRO' && (
+                        <p className="mt-1 text-sm font-bold text-status-vermelho" title={o.erpErro ?? undefined}>
+                          ERP: falhou
+                        </p>
+                      )}
+                    </td>
+                    <td className="tabular py-4 pr-8 pl-5 text-right font-bold">{formatarMoeda(o.preco)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <BotaoProximo o={o} onClick={(para) => setMudanca({ pedido: o, para })} />
+                        <Button size="sm" variant="outline" onClick={() => abrirDetalhe(o)}>
+                          Detalhes
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          </>
+        )}
+      </div>
+
+      {/* Detalhes do pedido */}
+      <Dialog open={detalhe !== null} onOpenChange={(aberto) => !aberto && setDetalhe(null)}>
+        {detalhe && (
+          <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Pedido #{numeroPedido(detalhe.id)}</DialogTitle>
+              <DialogDescription>
+                {paciente(detalhe)} · {detalhe.usuario.email} · {formatarData(detalhe.criadoEm)}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge status={detalhe.status} admin />
+              <span className="tabular text-lg font-bold">{formatarMoeda(detalhe.preco)}</span>
+              <span className="ml-auto">
+                <BotaoProximo o={detalhe} onClick={(para) => setMudanca({ pedido: detalhe, para })} />
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <a href={detalhe.arquivoReceitaUrl} target="_blank" rel="noopener noreferrer">
+                  <FileText aria-hidden="true" />
+                  Abrir receita
+                </a>
+              </Button>
+              {detalhe.anexos?.map((a, i) => (
+                <Button key={a.id} asChild variant="outline" size="sm">
+                  <a href={a.arquivoUrl} target="_blank" rel="noopener noreferrer" title={a.nomeArquivo}>
+                    <Paperclip aria-hidden="true" />
+                    Anexo {i + 1}
+                  </a>
+                </Button>
+              ))}
+            </div>
+
+            {(detalhe.observacoes || detalhe.respostaAdmin) && (
+              <div className="flex flex-col gap-2 rounded-xl bg-muted/60 px-4 py-3">
+                {detalhe.observacoes && (
+                  <p>
+                    <span className="font-bold">Recado do cliente:</span> {detalhe.observacoes}
+                  </p>
+                )}
+                {detalhe.respostaAdmin && (
+                  <p>
+                    <span className="font-bold">Mensagem da farmácia:</span> {detalhe.respostaAdmin}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {detalhe.itens.length > 0 && (
+              <div className="tabular rounded-xl bg-muted/60 px-4 py-3">
+                <p className="font-bold">Produtos</p>
+                {detalhe.itens.map((i) => (
+                  <p key={i.id} className="flex justify-between gap-3">
+                    <span>
+                      {i.produto.nome} × {i.quantidade}
+                    </span>
+                    <span>{formatarMoeda(Number(i.precoUnitario) * i.quantidade)}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {!['RECUSADO', 'CANCELADO'].includes(detalhe.status) && (
+              <form onSubmit={handleSalvarPosologia} className="flex flex-col gap-2">
+                <Label htmlFor="detalhe-posologia">Como tomar (aparece para o cliente)</Label>
+                <Textarea
+                  id="detalhe-posologia"
+                  rows={2}
+                  value={posologiaTexto}
+                  onChange={(e) => setPosologiaTexto(e.target.value)}
+                  disabled={isSalvandoPosologia}
+                  placeholder="Ex.: 10 gotas, 2 vezes ao dia. Deixe em branco para remover."
+                />
+                <Button type="submit" variant="outline" size="sm" disabled={isSalvandoPosologia} className="self-end">
+                  {isSalvandoPosologia && <Loader2 aria-hidden="true" className="animate-spin" />}
+                  Salvar modo de uso
+                </Button>
+              </form>
+            )}
+
+            {COM_ERP.includes(detalhe.status) && (
+              <section aria-labelledby="titulo-erp" className="rounded-xl border px-4 py-3">
+                <h3 id="titulo-erp" className="font-bold">
+                  ERP da farmácia
+                </h3>
+                <p className="text-muted-foreground">
+                  {detalhe.erpStatus === 'ENVIADO' &&
+                    `Enviado${detalhe.erpEnviadoEm ? ` em ${new Date(detalhe.erpEnviadoEm).toLocaleString('pt-BR')}` : ''}.`}
+                  {detalhe.erpStatus === 'ERRO' && `Falhou: ${detalhe.erpErro ?? 'erro desconhecido'}.`}
+                  {!detalhe.erpStatus && 'Ainda não enviado.'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => handleEnviarErp(detalhe.id)} disabled={processandoErp === detalhe.id}>
+                    {processandoErp === detalhe.id ? (
+                      <Loader2 aria-hidden="true" className="animate-spin" />
+                    ) : (
+                      <CloudUpload aria-hidden="true" />
+                    )}
+                    {detalhe.erpStatus ? 'Reenviar ao ERP' : 'Enviar ao ERP'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleExportar(detalhe.id, 'json')}>
+                    <Download aria-hidden="true" />
+                    Baixar JSON
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleExportar(detalhe.id, 'xml')}>
+                    <Download aria-hidden="true" />
+                    Baixar XML
+                  </Button>
+                </div>
+              </section>
+            )}
+          </DialogContent>
+        )}
+      </Dialog>
 
       <ConfirmDialog
         aberto={mudanca !== null}
-        titulo={mudanca?.para === 'ENTREGUE' ? 'Confirmar entrega' : 'Pedido pronto'}
-        mensagem={`Confirmar que o pedido #${mudanca?.pedido.id.substring(0, 8).toUpperCase() ?? ''} ${
-          mudanca?.para === 'ENTREGUE' ? 'foi entregue' : 'está pronto para retirada/envio'
-        }? O cliente receberá um e-mail.`}
+        titulo={mudanca?.para === 'ENTREGUE' ? 'Confirmar entrega?' : 'O pedido está pronto?'}
+        mensagem={`Pedido #${mudanca ? numeroPedido(mudanca.pedido.id) : ''} ${
+          mudanca?.para === 'ENTREGUE' ? 'foi entregue ao cliente' : 'está pronto para retirada ou envio'
+        }. O cliente recebe um e-mail.`}
         textoConfirmar={mudanca?.para === 'ENTREGUE' ? 'Marcar entregue' : 'Marcar pronto'}
         variante="primario"
         processando={isMudando}
@@ -449,3 +498,4 @@ export default function AdminPedidos() {
     </div>
   );
 }
+

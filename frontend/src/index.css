@@ -1,13 +1,170 @@
-/* Importa o Tailwind inteiro */
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* Sua configuração customizada entra aqui agora! */
-@theme {
-  --color-homeo-verde: #10B981;
+/*
+ * Design system do Grupo Farmácia HP.
+ * Público principal: idosos no celular. Por isso: corpo de 18px, contraste
+ * AA ou melhor em todo texto, verde como única cor de ação e um vocabulário
+ * fixo de cores de status (sempre acompanhado de ícone e texto).
+ */
+:root {
+  --radius: 0.75rem;
+
+  /* Chão e superfícies */
+  --background: #f3f6f5;
+  --foreground: #0f1f19;
+  --card: #ffffff;
+  --card-foreground: #0f1f19;
+  --popover: #ffffff;
+  --popover-foreground: #0f1f19;
+  --muted: #e9efec;
+  --muted-foreground: #4b5c55;
+  --border: #d3ddd9;
+  --input: #7c8f87;
+  --ring: #0b7250;
+
+  /* Ação (verde farmácia) */
+  --primary: #0b7250;
+  --primary-hover: #095c41;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e3f2eb;
+  --secondary: #e9efec;
+  --secondary-foreground: #0f1f19;
+  --accent: #e3f2eb;
+  --accent-foreground: #07513a;
+  --destructive: #b42318;
+  --destructive-soft: #fdecea;
+
+  /* Status (fundo suave + texto forte, contraste >= 4.5:1) */
+  --status-laranja: #9a4a05;
+  --status-laranja-soft: #fff1e0;
+  --status-amarelo: #6b4a00;
+  --status-amarelo-soft: #ffe9a8;
+  --status-azul: #1d5fb0;
+  --status-azul-soft: #e6effa;
+  --status-verde: #07603f;
+  --status-verde-soft: #dcf1e6;
+  --status-cinza: #4b5c55;
+  --status-cinza-soft: #e9efec;
+  --status-vermelho: #b42318;
+  --status-vermelho-soft: #fdecea;
+
+  /* Preenchimentos sólidos (pontos, barras): matizes separados, >= 3:1 no branco */
+  --ponto-laranja: #d9620b;
+  --ponto-amarelo: #b98300;
+  --ponto-azul: #1d5fb0;
+  --ponto-verde: #0b7250;
+  --ponto-cinza: #6b7c75;
+  --ponto-vermelho: #c42b1c;
+
+  --shadow-card: 0 1px 2px rgb(15 31 25 / 0.06), 0 6px 16px -4px rgb(15 31 25 / 0.1);
+  --shadow-float: 0 8px 28px -6px rgb(15 31 25 / 0.22);
 }
 
-/* Acessibilidade: foco visível para navegação por teclado */
-:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
+@theme inline {
+  --font-sans: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+
+  --color-status-laranja: var(--status-laranja);
+  --color-status-laranja-soft: var(--status-laranja-soft);
+  --color-status-amarelo: var(--status-amarelo);
+  --color-status-amarelo-soft: var(--status-amarelo-soft);
+  --color-status-azul: var(--status-azul);
+  --color-status-azul-soft: var(--status-azul-soft);
+  --color-status-verde: var(--status-verde);
+  --color-status-verde-soft: var(--status-verde-soft);
+  --color-status-cinza: var(--status-cinza);
+  --color-status-cinza-soft: var(--status-cinza-soft);
+  --color-status-vermelho: var(--status-vermelho);
+  --color-status-vermelho-soft: var(--status-vermelho-soft);
+  --color-ponto-laranja: var(--ponto-laranja);
+  --color-ponto-amarelo: var(--ponto-amarelo);
+  --color-ponto-azul: var(--ponto-azul);
+  --color-ponto-verde: var(--ponto-verde);
+  --color-ponto-cinza: var(--ponto-cinza);
+  --color-ponto-vermelho: var(--ponto-vermelho);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+}
+
+@layer base {
+  /* 18px de base: todo o rem da interface cresce junto */
+  html {
+    font-size: 112.5%;
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: #9aaba4 transparent;
+    accent-color: var(--primary);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.55;
+    caret-color: var(--primary);
+    font-optical-sizing: auto;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: #b9e3cf;
+    color: var(--foreground);
+  }
+
+  /* Foco visível e grosso para quem navega por teclado */
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+/* Preços e números de pedido não "dançam" */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

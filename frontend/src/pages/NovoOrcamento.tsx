@@ -1,7 +1,30 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { apiFetch } from '../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  CircleCheckBig,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Minus,
+  PawPrint,
+  Plus,
+  Paperclip,
+  Send,
+  Sparkles,
+  User,
+  UserPlus,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+import { formatarMoeda, numeroPedido } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Produto {
   id: string;
@@ -21,13 +44,6 @@ interface Familiar {
   titularEmail: string | null;
 }
 
-const MAX_ANEXOS = 5;
-
-function rotuloFamiliar(f: Familiar) {
-  const detalhe = f.tipo === 'PET' ? `Pet${f.especie ? ` · ${f.especie}` : ''}` : f.parentesco;
-  return `${f.nome} — ${detalhe}`;
-}
-
 interface ItemCarrinho {
   produtoId: string;
   nome: string;
@@ -35,30 +51,45 @@ interface ItemCarrinho {
   quantidade: number;
 }
 
+const MAX_ANEXOS = 5;
+const MAX_BYTES = 10 * 1024 * 1024;
+
+const PASSOS = ['Para quem é', 'Receita', 'Algo mais?', 'Conferir e enviar'];
+
+function descricaoFamiliar(f: Familiar) {
+  const detalhe = f.tipo === 'PET' ? `Pet${f.especie ? ` · ${f.especie}` : ''}` : f.parentesco;
+  return f.proprio ? detalhe : `${detalhe} · família de ${f.titularEmail}`;
+}
+
 export default function NovoOrcamento() {
+  const [passo, setPasso] = useState(0);
+  const [familiarId, setFamiliarId] = useState<string>(''); // '' = o próprio titular
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [anexos, setAnexos] = useState<File[]>([]);
-  const [sugestoes, setSugestoes] = useState<Produto[]>([]);
   const [observacoes, setObservacoes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sucesso, setSucesso] = useState(false);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [familiares, setFamiliares] = useState<Familiar[]>([]);
-  const [familiarId, setFamiliarId] = useState('');
   const [carrinho, setCarrinho] = useState<Map<string, ItemCarrinho>>(new Map());
-  const navigate = useNavigate();
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [sugestoes, setSugestoes] = useState<Produto[]>([]);
+  const [familiares, setFamiliares] = useState<Familiar[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [protocolo, setProtocolo] = useState<string | null>(null);
+  const tituloRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     apiFetch('/produtos')
       .then((r) => (r.ok ? r.json() : []))
       .then(setProdutos)
       .catch(() => {});
-
     apiFetch('/familiares')
       .then((r) => (r.ok ? r.json() : []))
       .then(setFamiliares)
       .catch(() => {});
   }, []);
+
+  // Ao trocar de passo, o foco vai para o título: o leitor de tela anuncia onde a pessoa está
+  useEffect(() => {
+    tituloRef.current?.focus();
+  }, [passo]);
 
   // Sugestões de produtos complementares aos que já estão no pedido
   const idsNoCarrinho = Array.from(carrinho.keys()).sort().join(',');
@@ -75,76 +106,77 @@ export default function NovoOrcamento() {
       cancelado = true;
     };
   }, [idsNoCarrinho]);
+  const sugestoesVisiveis = idsNoCarrinho ? sugestoes.filter((p) => !carrinho.has(p.id)) : [];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setArquivo(e.target.files[0]);
+  // Miniatura da foto da receita, para a pessoa conferir que saiu legível
+  const previa = useMemo(
+    () => (arquivo && arquivo.type.startsWith('image/') ? URL.createObjectURL(arquivo) : null),
+    [arquivo],
+  );
+  useEffect(() => () => {
+    if (previa) URL.revokeObjectURL(previa);
+  }, [previa]);
+
+  const escolherReceita = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.size > MAX_BYTES) {
+      toast.error('Esse arquivo é maior que 10 MB. Tente uma foto com menos qualidade.');
+      return;
+    }
+    setArquivo(f);
   };
 
-  const handleAnexosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const escolherAnexos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const novos = Array.from(e.target.files ?? []);
     e.target.value = '';
-    const muitoGrandes = novos.filter((f) => f.size > 10 * 1024 * 1024);
-    if (muitoGrandes.length > 0) {
-      toast.error('Cada anexo pode ter no máximo 10MB.');
-    }
+    if (novos.some((f) => f.size > MAX_BYTES)) toast.error('Cada arquivo pode ter no máximo 10 MB.');
     setAnexos((prev) => {
-      const combinados = [...prev, ...novos.filter((f) => f.size <= 10 * 1024 * 1024)];
-      if (combinados.length > MAX_ANEXOS) {
-        toast.error(`Você pode enviar até ${MAX_ANEXOS} anexos.`);
-      }
-      return combinados.slice(0, MAX_ANEXOS);
+      const juntos = [...prev, ...novos.filter((f) => f.size <= MAX_BYTES)];
+      if (juntos.length > MAX_ANEXOS) toast.error(`Você pode enviar até ${MAX_ANEXOS} arquivos extras.`);
+      return juntos.slice(0, MAX_ANEXOS);
     });
   };
 
-  const sugestoesVisiveis = idsNoCarrinho ? sugestoes.filter((p) => !carrinho.has(p.id)) : [];
-
-  const removerAnexo = (indice: number) =>
-    setAnexos((prev) => prev.filter((_, i) => i !== indice));
-
-  const adicionarAoCarrinho = (produto: Produto) => {
+  const mudarQuantidade = (produto: Pick<Produto, 'id' | 'nome' | 'preco'>, delta: number) =>
     setCarrinho((prev) => {
       const next = new Map(prev);
-      const existente = next.get(produto.id);
-      if (existente) {
-        next.set(produto.id, { ...existente, quantidade: existente.quantidade + 1 });
-      } else {
+      const atual = next.get(produto.id);
+      const quantidade = (atual?.quantidade ?? 0) + delta;
+      if (quantidade <= 0) next.delete(produto.id);
+      else
         next.set(produto.id, {
           produtoId: produto.id,
           nome: produto.nome,
           preco: Number(produto.preco),
-          quantidade: 1,
+          quantidade: Math.min(quantidade, 99),
         });
-      }
       return next;
     });
-  };
 
-  const removerDoCarrinho = (produtoId: string) => {
-    setCarrinho((prev) => {
-      const next = new Map(prev);
-      const item = next.get(produtoId);
-      if (!item) return prev;
-      if (item.quantidade <= 1) {
-        next.delete(produtoId);
-      } else {
-        next.set(produtoId, { ...item, quantidade: item.quantidade - 1 });
-      }
-      return next;
-    });
-  };
+  const itens = Array.from(carrinho.values());
+  const subtotal = itens.reduce((acc, i) => acc + i.preco * i.quantidade, 0);
+  const pacienteEscolhido = familiares.find((f) => f.id === familiarId);
+  const nomePaciente = pacienteEscolhido?.nome ?? 'Você mesmo(a)';
 
-  const totalCarrinho = Array.from(carrinho.values()).reduce(
-    (acc, item) => acc + item.preco * item.quantidade,
-    0,
-  );
+  const podeAvancar = passo !== 1 || arquivo !== null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!arquivo) {
-      toast.error('Por favor, anexe a foto ou PDF da sua receita médica.');
+  const avancar = () => {
+    if (!podeAvancar) {
+      toast.error('Envie a foto ou o arquivo da receita para continuar.');
       return;
     }
+    setPasso((p) => Math.min(p + 1, PASSOS.length - 1));
+    window.scrollTo({ top: 0 });
+  };
+  const voltar = () => {
+    setPasso((p) => Math.max(p - 1, 0));
+    window.scrollTo({ top: 0 });
+  };
 
+  const enviar = async () => {
+    if (!arquivo) return;
     setIsSubmitting(true);
     try {
       const formData = new FormData();
@@ -152,386 +184,441 @@ export default function NovoOrcamento() {
       anexos.forEach((a) => formData.append('anexos', a));
       if (observacoes) formData.append('observacoes', observacoes);
       if (familiarId) formData.append('familiarId', familiarId);
-
-      const itens = Array.from(carrinho.values()).map((i) => ({
-        produtoId: i.produtoId,
-        quantidade: i.quantidade,
-      }));
       if (itens.length > 0) {
-        formData.append('itens', JSON.stringify(itens));
-      }
-
-      const response = await apiFetch('/orcamentos/receita', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        setSucesso(true);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(
-          typeof errorData.message === 'string'
-            ? errorData.message
-            : 'Tivemos um problema ao processar sua receita. Tente novamente.',
+        formData.append(
+          'itens',
+          JSON.stringify(itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade }))),
         );
       }
+
+      const response = await apiFetch('/orcamentos/receita', { method: 'POST', body: formData });
+      const dados = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(
+          typeof dados.message === 'string'
+            ? dados.message
+            : 'Não conseguimos enviar sua receita. Tente de novo em instantes.',
+        );
+        return;
+      }
+      setProtocolo(dados.id);
+      window.scrollTo({ top: 0 });
     } catch {
-      toast.error('Não foi possível conectar com o servidor. O backend está rodando?');
+      toast.error('Sem conexão com a farmácia. Confira sua internet e tente de novo.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (sucesso) {
+  // ---------- Confirmação ----------
+  if (protocolo) {
     return (
-      <div className="animate-fade-in max-w-2xl mx-auto">
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-col items-center justify-center text-center py-8">
-            <div className="text-6xl mb-4" aria-hidden="true">✅</div>
-            <h2 className="text-2xl font-bold text-green-700 mb-2">Receita enviada com sucesso!</h2>
-            <p className="text-gray-600 mb-8 max-w-md">
-              Nossa equipe de farmacêuticos já recebeu o seu arquivo. Você receberá o orçamento
-              detalhado muito em breve.
-            </p>
-            <button
-              onClick={() => navigate('/')}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors shadow-md cursor-pointer"
-            >
-              Voltar para o Início
-            </button>
+      <div className="mx-auto max-w-xl">
+        <div className="rounded-2xl bg-card p-6 text-center shadow-card sm:p-10">
+          <span
+            aria-hidden="true"
+            className="mx-auto grid size-20 place-items-center rounded-full bg-status-verde-soft text-status-verde"
+          >
+            <CircleCheckBig className="size-11" />
+          </span>
+          <h1 className="mt-5 text-3xl font-bold">Receita enviada!</h1>
+          <p className="mt-2 text-lg text-muted-foreground">Guarde o número do seu pedido:</p>
+          <p className="tabular mt-2 inline-block rounded-xl bg-muted px-5 py-2 text-3xl font-bold tracking-wider">
+            #{numeroPedido(protocolo)}
+          </p>
+
+          <ol className="mt-8 space-y-4 text-left">
+            {[
+              'A farmácia confere a receita.',
+              'Você recebe um e-mail quando o orçamento estiver pronto.',
+              'Você aprova o valor aqui no app e a gente começa a preparar.',
+            ].map((texto, i) => (
+              <li key={texto} className="flex items-start gap-3">
+                <span className="tabular grid size-8 shrink-0 place-items-center rounded-full bg-primary-soft font-bold text-accent-foreground">
+                  {i + 1}
+                </span>
+                <span className="pt-0.5 text-lg">{texto}</span>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button asChild size="lg">
+              <Link to={`/meus-pedidos#pedido-${protocolo}`}>Acompanhar meu pedido</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/">Voltar ao início</Link>
+            </Button>
           </div>
         </div>
       </div>
     );
   }
 
+  // ---------- Passos ----------
   return (
-    <div className="animate-fade-in max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Enviar Receita</h1>
-        <p className="text-gray-600 mt-2">
-          Anexe sua receita e, se desejar, adicione produtos do nosso catálogo ao pedido.
-        </p>
+    <div className="mx-auto max-w-2xl">
+      {/* Indicador de progresso */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between gap-3">
+          {passo > 0 ? (
+            <Button variant="ghost" onClick={voltar} disabled={isSubmitting} className="-ml-3">
+              <ArrowLeft aria-hidden="true" />
+              Voltar
+            </Button>
+          ) : (
+            <Button asChild variant="ghost" className="-ml-3">
+              <Link to="/">
+                <ArrowLeft aria-hidden="true" />
+                Início
+              </Link>
+            </Button>
+          )}
+          <p className="font-bold text-muted-foreground">
+            Passo {passo + 1} de {PASSOS.length}
+          </p>
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-2" aria-hidden="true">
+          {PASSOS.map((nome, i) => (
+            <span
+              key={nome}
+              className={cn('h-2 rounded-full transition-colors', i <= passo ? 'bg-primary' : 'bg-border')}
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Formulário principal */}
-        <div className="flex-1">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {/* Passo 1: paciente */}
+      {passo === 0 && (
+        <section>
+          <h1 ref={tituloRef} tabIndex={-1} className="text-3xl font-bold outline-none">
+            Para quem é o remédio?
+          </h1>
+          <p className="mt-1 text-lg text-muted-foreground">Toque em uma opção.</p>
 
-            {/* Paciente */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 id="titulo-paciente" className="font-semibold text-gray-800 mb-4">1. Para quem é esta receita?</h2>
-              <select
-                aria-labelledby="titulo-paciente"
-                value={familiarId}
-                onChange={(e) => setFamiliarId(e.target.value)}
-                disabled={isSubmitting}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm disabled:bg-gray-100"
-              >
-                <option value="">Para mim mesmo (titular da conta)</option>
-                {familiares.some((f) => f.proprio) && (
-                  <optgroup label="Meus dependentes">
-                    {familiares
-                      .filter((f) => f.proprio)
-                      .map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {rotuloFamiliar(f)}
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-                {familiares.some((f) => !f.proprio) && (
-                  <optgroup label="Compartilhados com você">
-                    {familiares
-                      .filter((f) => !f.proprio)
-                      .map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {rotuloFamiliar(f)} ({f.titularEmail})
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-              </select>
-              {familiares.length === 0 && (
-                <p className="mt-2 text-xs text-gray-400">
-                  Nenhum dependente cadastrado.{' '}
-                  <Link to="/grupo-familia" className="text-blue-600 hover:underline">
-                    Adicionar no Grupo Família
-                  </Link>
-                </p>
-              )}
-            </div>
-
-            {/* Receita */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="font-semibold text-gray-800 mb-4">2. Receita Médica *</h2>
-              <label
-                htmlFor="dropzone-file"
-                className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                  arquivo
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-                } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="flex flex-col items-center justify-center text-center px-4">
-                  {arquivo ? (
-                    <>
-                      <div className="text-3xl mb-1" aria-hidden="true">✅</div>
-                      <p className="text-sm text-green-700 font-semibold truncate max-w-xs">
-                        {arquivo.name}
-                      </p>
-                      <p className="text-xs text-green-600">Clique para trocar</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-3xl mb-1 text-gray-400" aria-hidden="true">📄</div>
-                      <p className="text-sm text-gray-500">
-                        <span className="font-semibold">Clique para upload</span> ou arraste
-                      </p>
-                      <p className="text-xs text-gray-400">PNG, JPG ou PDF (Máx. 10MB)</p>
-                    </>
+          <div role="radiogroup" aria-label="Para quem é o remédio" className="mt-6 flex flex-col gap-3">
+            {[
+              { id: '', nome: 'Para mim', detalhe: 'O titular da conta', icone: User },
+              ...familiares.map((f) => ({
+                id: f.id,
+                nome: f.nome,
+                detalhe: descricaoFamiliar(f),
+                icone: f.tipo === 'PET' ? PawPrint : User,
+              })),
+            ].map(({ id, nome, detalhe, icone: Icone }) => {
+              const marcado = familiarId === id;
+              return (
+                <button
+                  key={id || 'titular'}
+                  type="button"
+                  role="radio"
+                  aria-checked={marcado}
+                  onClick={() => setFamiliarId(id)}
+                  className={cn(
+                    'flex min-h-18 items-center gap-4 rounded-2xl border-2 bg-card px-5 py-4 text-left transition-[border-color,background-color]',
+                    marcado ? 'border-primary bg-primary-soft' : 'border-border hover:border-primary/50',
                   )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'grid size-12 shrink-0 place-items-center rounded-full',
+                      marcado ? 'bg-primary text-primary-foreground' : 'bg-muted text-accent-foreground',
+                    )}
+                  >
+                    <Icone className="size-6" />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-lg font-bold">{nome}</span>
+                    <span className="block text-muted-foreground">{detalhe}</span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'grid size-7 shrink-0 place-items-center rounded-full border-2',
+                      marcado ? 'border-primary bg-primary' : 'border-input',
+                    )}
+                  >
+                    {marcado && <span className="size-2.5 rounded-full bg-card" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <Link
+            to="/grupo-familia"
+            className="mt-4 inline-flex min-h-12 items-center gap-2 font-bold text-primary hover:text-primary-hover"
+          >
+            <UserPlus aria-hidden="true" className="size-5" />
+            Cadastrar parente ou pet
+          </Link>
+        </section>
+      )}
+
+      {/* Passo 2: receita */}
+      {passo === 1 && (
+        <section>
+          <h1 ref={tituloRef} tabIndex={-1} className="text-3xl font-bold outline-none">
+            Envie a receita
+          </h1>
+          <p className="mt-1 text-lg text-muted-foreground">
+            Coloque a receita em um lugar claro e tire a foto de cima, pegando a folha inteira.
+          </p>
+
+          {arquivo ? (
+            <div className="mt-6 overflow-hidden rounded-2xl bg-card shadow-card">
+              {previa ? (
+                <img src={previa} alt="Foto da receita enviada" className="max-h-80 w-full bg-muted object-contain" />
+              ) : (
+                <div className="flex items-center gap-3 bg-muted px-5 py-8">
+                  <FileText aria-hidden="true" className="size-10 text-accent-foreground" />
+                  <span className="font-bold">Arquivo PDF</span>
                 </div>
+              )}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <p className="flex min-w-0 items-center gap-2 font-bold text-status-verde">
+                  <CircleCheckBig aria-hidden="true" className="size-5 shrink-0" />
+                  <span className="truncate">{arquivo.name}</span>
+                </p>
+                <Button variant="outline" onClick={() => setArquivo(null)}>
+                  Trocar receita
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 flex flex-col gap-3">
+              {/* No celular, "capture" abre direto a câmera traseira */}
+              <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl bg-primary p-6 text-center text-primary-foreground shadow-card transition-colors hover:bg-primary-hover focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ring">
+                <Camera aria-hidden="true" className="size-12" />
+                <span className="text-xl font-bold">Tirar foto da receita</span>
                 <input
-                  id="dropzone-file"
                   type="file"
-                  className="hidden"
-                  accept="image/*,.pdf"
-                  onChange={handleFileChange}
-                  disabled={isSubmitting}
+                  accept="image/*"
+                  capture="environment"
+                  onChange={escolherReceita}
+                  className="sr-only"
                 />
               </label>
-            </div>
-
-            {/* Anexos */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="font-semibold text-gray-800">3. Outros anexos (Opcional)</h2>
-              <p className="text-xs text-gray-500 mt-1 mb-4">
-                Exames, laudos ou receitas complementares. Até {MAX_ANEXOS} arquivos (imagem ou PDF, máx. 10MB cada).
-              </p>
-              {anexos.length > 0 && (
-                <ul className="mb-3 flex flex-col gap-2">
-                  {anexos.map((a, i) => (
-                    <li
-                      key={`${a.name}-${i}`}
-                      className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
-                    >
-                      <span className="truncate text-gray-700">{a.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removerAnexo(i)}
-                        disabled={isSubmitting}
-                        aria-label={`Remover anexo ${a.name}`}
-                        className="shrink-0 text-red-600 hover:underline text-xs font-semibold disabled:opacity-50"
-                      >
-                        Remover
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {anexos.length < MAX_ANEXOS && (
-                <label
-                  htmlFor="anexos-file"
-                  className={`inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <span aria-hidden="true">📎</span> Adicionar anexos
-                  <input
-                    id="anexos-file"
-                    type="file"
-                    multiple
-                    className="sr-only"
-                    accept="image/*,.pdf"
-                    onChange={handleAnexosChange}
-                    disabled={isSubmitting}
-                  />
-                </label>
-              )}
-            </div>
-
-            {/* Observações */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 id="titulo-observacoes" className="font-semibold text-gray-800 mb-4">4. Observações (Opcional)</h2>
-              <textarea
-                aria-labelledby="titulo-observacoes"
-                rows={3}
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                disabled={isSubmitting}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none disabled:bg-gray-100 text-sm"
-                placeholder="Ex: Prefiro cápsulas vegetais, se possível."
-              />
-            </div>
-
-            <div className="flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                disabled={isSubmitting}
-                className="px-6 py-3 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors shadow-md disabled:opacity-50"
-              >
-                {isSubmitting ? 'Enviando...' : 'Solicitar Orçamento'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Vitrine + Carrinho */}
-        <div className="lg:w-80 flex flex-col gap-4">
-          {/* Carrinho */}
-          {carrinho.size > 0 && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-              <h3 className="font-semibold text-blue-800 mb-3 text-sm">Produtos selecionados</h3>
-              <div className="flex flex-col gap-2">
-                {Array.from(carrinho.values()).map((item) => (
-                  <div key={item.produtoId} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-700 flex-1 truncate">{item.nome}</span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => removerDoCarrinho(item.produtoId)}
-                        aria-label={`Diminuir quantidade de ${item.nome}`}
-                        className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-600 hover:bg-red-50 hover:text-red-600 text-xs font-bold"
-                      >
-                        −
-                      </button>
-                      <span className="w-5 text-center text-sm font-semibold" aria-live="polite">
-                        {item.quantidade}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          adicionarAoCarrinho({
-                            id: item.produtoId,
-                            nome: item.nome,
-                            preco: String(item.preco),
-                            descricao: null,
-                            imagemUrl: null,
-                          })
-                        }
-                        aria-label={`Aumentar quantidade de ${item.nome}`}
-                        className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-600 hover:bg-green-50 hover:text-green-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
-                <span className="text-xs text-blue-700 font-medium">Subtotal estimado</span>
-                <span className="font-bold text-blue-800">
-                  R$ {totalCarrinho.toFixed(2).replace('.', ',')}
-                </span>
-              </div>
+              <label className="flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 border-primary/30 bg-card px-5 text-lg font-bold text-accent-foreground transition-colors hover:border-primary hover:bg-primary-soft focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ring">
+                <FolderOpen aria-hidden="true" className="size-6" />
+                Escolher foto ou PDF salvo
+                <input type="file" accept="image/*,.pdf" onChange={escolherReceita} className="sr-only" />
+              </label>
+              <p className="text-center text-muted-foreground">Foto ou PDF de até 10 MB.</p>
             </div>
           )}
 
-          {/* Sugestões de complementares */}
-          {sugestoesVisiveis.length > 0 && (
-            <section
-              aria-labelledby="titulo-sugestoes"
-              className="bg-emerald-50 border border-emerald-100 rounded-xl p-4"
-            >
-              <h3 id="titulo-sugestoes" className="font-semibold text-emerald-900 text-sm">
-                Combina com o seu pedido
-              </h3>
-              <p className="text-xs text-emerald-700 mt-0.5 mb-3">
-                Produtos complementares indicados pela farmácia
-              </p>
-              <ul className="flex flex-col gap-2">
-                {sugestoesVisiveis.map((produto) => (
-                  <li key={produto.id} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{produto.nome}</p>
-                      <p className="text-xs text-green-700 font-semibold">
-                        R$ {Number(produto.preco).toFixed(2).replace('.', ',')}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => adicionarAoCarrinho(produto)}
-                      aria-label={`Adicionar ${produto.nome} ao pedido`}
-                      className="shrink-0 px-2.5 py-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors"
+          {/* Arquivos extras */}
+          <div className="mt-8">
+            <h2 className="text-xl font-bold">Tem exames ou outra receita?</h2>
+            <p className="text-muted-foreground">Opcional. Até {MAX_ANEXOS} arquivos.</p>
+            {anexos.length > 0 && (
+              <ul className="mt-3 flex flex-col gap-2">
+                {anexos.map((a, i) => (
+                  <li
+                    key={`${a.name}-${i}`}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-card py-1 pr-1 pl-4 shadow-card"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Paperclip aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{a.name}</span>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setAnexos((prev) => prev.filter((_, j) => j !== i))}
+                      aria-label={`Remover ${a.name}`}
+                      className="text-destructive"
                     >
-                      + Add
-                    </button>
+                      <X aria-hidden="true" />
+                      Remover
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {anexos.length < MAX_ANEXOS && (
+              <label className="mt-3 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border-2 border-primary/30 bg-card px-4 font-bold text-accent-foreground transition-colors hover:border-primary hover:bg-primary-soft focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ring">
+                <Paperclip aria-hidden="true" className="size-5" />
+                Adicionar arquivo
+                <input type="file" multiple accept="image/*,.pdf" onChange={escolherAnexos} className="sr-only" />
+              </label>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Passo 3: observações e produtos */}
+      {passo === 2 && (
+        <section>
+          <h1 ref={tituloRef} tabIndex={-1} className="text-3xl font-bold outline-none">
+            Quer dizer algo à farmácia?
+          </h1>
+          <p className="mt-1 text-lg text-muted-foreground">Tudo aqui é opcional. Se não precisar, é só continuar.</p>
+
+          <div className="mt-6 flex flex-col gap-2">
+            <Label htmlFor="observacoes">Recado para o farmacêutico</Label>
+            <Textarea
+              id="observacoes"
+              rows={3}
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Ex.: prefiro cápsulas vegetais."
+            />
+          </div>
+
+          {sugestoesVisiveis.length > 0 && (
+            <section aria-labelledby="titulo-sugestoes" className="mt-8 rounded-2xl bg-primary-soft p-5">
+              <h2 id="titulo-sugestoes" className="flex items-center gap-2 text-lg font-bold text-accent-foreground">
+                <Sparkles aria-hidden="true" className="size-5" />
+                Combina com o seu pedido
+              </h2>
+              <ul className="mt-3 flex flex-col gap-2">
+                {sugestoesVisiveis.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-3 rounded-xl bg-card py-2 pr-2 pl-4">
+                    <span className="min-w-0">
+                      <span className="block font-bold">{p.nome}</span>
+                      <span className="tabular block text-muted-foreground">{formatarMoeda(p.preco)}</span>
+                    </span>
+                    <Button variant="outline" onClick={() => mudarQuantidade(p, 1)} aria-label={`Adicionar ${p.nome}`}>
+                      <Plus aria-hidden="true" />
+                      Adicionar
+                    </Button>
                   </li>
                 ))}
               </ul>
             </section>
           )}
 
-          {/* Catálogo */}
           {produtos.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-800 text-sm">
-                  5. Adicionar Produtos ao Pedido
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">Opcional — agiliza o preparo</p>
-              </div>
-              <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-                {produtos.map((produto) => {
-                  const noCarrinho = carrinho.get(produto.id);
+            <section aria-labelledby="titulo-catalogo" className="mt-8">
+              <h2 id="titulo-catalogo" className="text-xl font-bold">
+                Produtos da farmácia
+              </h2>
+              <p className="text-muted-foreground">Quer aproveitar e levar junto?</p>
+              <ul className="mt-3 divide-y overflow-hidden rounded-2xl bg-card shadow-card">
+                {produtos.map((p) => {
+                  const noCarrinho = carrinho.get(p.id);
                   return (
-                    <div key={produto.id} className="p-3 flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{produto.nome}</p>
-                        <p className="text-xs text-green-700 font-semibold">
-                          R$ {Number(produto.preco).toFixed(2).replace('.', ',')}
-                        </p>
-                      </div>
+                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-bold">{p.nome}</span>
+                        {p.descricao && <span className="block text-muted-foreground">{p.descricao}</span>}
+                        <span className="tabular block font-bold text-status-verde">{formatarMoeda(p.preco)}</span>
+                      </span>
                       {noCarrinho ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => removerDoCarrinho(produto.id)}
-                            aria-label={`Diminuir quantidade de ${produto.nome}`}
-                            className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded text-sm font-bold"
+                        <span className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => mudarQuantidade(p, -1)}
+                            aria-label={`Diminuir ${p.nome}`}
                           >
-                            −
-                          </button>
-                          <span className="w-5 text-center text-sm font-semibold">
+                            <Minus aria-hidden="true" />
+                          </Button>
+                          <span className="tabular w-10 text-center text-lg font-bold" aria-live="polite">
                             {noCarrinho.quantidade}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => adicionarAoCarrinho(produto)}
-                            aria-label={`Aumentar quantidade de ${produto.nome}`}
-                            className="w-7 h-7 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-bold"
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => mudarQuantidade(p, 1)}
+                            aria-label={`Aumentar ${p.nome}`}
                           >
-                            +
-                          </button>
-                        </div>
+                            <Plus aria-hidden="true" />
+                          </Button>
+                        </span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => adicionarAoCarrinho(produto)}
-                          aria-label={`Adicionar ${produto.nome} ao pedido`}
-                          className="px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors"
-                        >
-                          + Add
-                        </button>
+                        <Button variant="outline" onClick={() => mudarQuantidade(p, 1)} aria-label={`Adicionar ${p.nome}`}>
+                          <Plus aria-hidden="true" />
+                          Adicionar
+                        </Button>
                       )}
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
-        </div>
+        </section>
+      )}
+
+      {/* Passo 4: revisão */}
+      {passo === 3 && (
+        <section>
+          <h1 ref={tituloRef} tabIndex={-1} className="text-3xl font-bold outline-none">
+            Confira antes de enviar
+          </h1>
+          <dl className="mt-6 divide-y overflow-hidden rounded-2xl bg-card shadow-card">
+            {[
+              { rotulo: 'Para quem', valor: nomePaciente, passo: 0 },
+              {
+                rotulo: 'Receita',
+                valor: `${arquivo?.name ?? '—'}${anexos.length ? ` + ${anexos.length} arquivo(s)` : ''}`,
+                passo: 1,
+              },
+              { rotulo: 'Recado', valor: observacoes || 'Nenhum', passo: 2 },
+            ].map((linha) => (
+              <div key={linha.rotulo} className="flex items-start justify-between gap-3 px-5 py-4">
+                <div className="min-w-0">
+                  <dt className="text-muted-foreground">{linha.rotulo}</dt>
+                  <dd className="break-words text-lg font-bold">{linha.valor}</dd>
+                </div>
+                <Button variant="ghost" onClick={() => setPasso(linha.passo)} className="text-primary">
+                  Alterar
+                </Button>
+              </div>
+            ))}
+            {itens.length > 0 && (
+              <div className="px-5 py-4">
+                <dt className="text-muted-foreground">Produtos</dt>
+                <dd>
+                  <ul className="mt-1">
+                    {itens.map((i) => (
+                      <li key={i.produtoId} className="tabular flex justify-between gap-3 text-lg">
+                        <span>
+                          {i.nome} × {i.quantidade}
+                        </span>
+                        <span>{formatarMoeda(i.preco * i.quantidade)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="tabular mt-2 flex justify-between border-t pt-2 text-lg font-bold">
+                    <span>Subtotal dos produtos</span>
+                    <span>{formatarMoeda(subtotal)}</span>
+                  </p>
+                </dd>
+              </div>
+            )}
+          </dl>
+          <p className="mt-4 text-muted-foreground">
+            O valor da fórmula vem no orçamento. Você só paga depois de aprovar.
+          </p>
+        </section>
+      )}
+
+      {/* Barra de ação: fica ao alcance do polegar no celular */}
+      <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-8 border-t bg-background px-4 py-4 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0">
+        {passo < PASSOS.length - 1 ? (
+          <Button size="lg" onClick={avancar} aria-disabled={!podeAvancar} className={cn('w-full', !podeAvancar && 'opacity-55')}>
+            Continuar
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button size="lg" onClick={enviar} disabled={isSubmitting} className="w-full">
+            {isSubmitting ? (
+              <>
+                <Loader2 aria-hidden="true" className="animate-spin" />
+                Enviando sua receita…
+              </>
+            ) : (
+              <>
+                <Send aria-hidden="true" />
+                Enviar para a farmácia
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
-import { apiFetch } from '../lib/api';
-import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  Check,
+  Loader2,
+  Mail,
+  PawPrint,
+  Pencil,
+  Share2,
+  Trash2,
+  User,
+  UserPlus,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+import { formatarDataUTC } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import EstadoVazio from '@/components/EstadoVazio';
+import { CartoesCarregando } from '@/components/Carregando';
 
 interface Familiar {
   id: string;
@@ -34,24 +54,36 @@ interface FormState {
   dataNascimento: string;
 }
 
-const formVazio: FormState = {
-  tipo: 'PESSOA',
-  nome: '',
-  parentesco: '',
-  especie: '',
-  dataNascimento: '',
-};
+const formVazio: FormState = { tipo: 'PESSOA', nome: '', parentesco: '', especie: '', dataNascimento: '' };
 
 type Confirmacao =
   | { tipo: 'familiar'; id: string; nome: string }
-  | { tipo: 'acesso'; id: string; texto: string };
+  | { tipo: 'acesso'; id: string; titulo: string; texto: string; botao: string };
 
-const inputClass =
-  'w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100';
+const PARENTESCOS = ['Filho(a)', 'Pai/Mãe', 'Cônjuge', 'Irmão(ã)', 'Avô/Avó', 'Outro'];
+const ESPECIES = ['Cão', 'Gato', 'Ave', 'Outro'];
+
+const selectClass =
+  'h-13 w-full rounded-lg border-2 border-input bg-card px-4 text-base outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/25 disabled:bg-muted';
 
 function descricaoFamiliar(f: Familiar) {
   if (f.tipo === 'PET') return f.especie ? `Pet · ${f.especie}` : 'Pet';
   return f.parentesco;
+}
+
+function Avatar({ tipo }: { tipo: 'PESSOA' | 'PET' }) {
+  const Icone: LucideIcon = tipo === 'PET' ? PawPrint : User;
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'grid size-12 shrink-0 place-items-center rounded-full',
+        tipo === 'PET' ? 'bg-status-laranja-soft text-status-laranja' : 'bg-primary-soft text-accent-foreground',
+      )}
+    >
+      <Icone className="size-6" />
+    </span>
+  );
 }
 
 export default function GrupoFamilia() {
@@ -79,7 +111,7 @@ export default function GrupoFamilia() {
           if (resFamiliares.ok) {
             setFamiliares(await resFamiliares.json());
           } else {
-            toast.error('Não foi possível carregar os familiares.');
+            toast.error('Não conseguimos carregar sua família.');
           }
           if (resAcessos.ok) {
             const acessos = await resAcessos.json();
@@ -87,7 +119,7 @@ export default function GrupoFamilia() {
             setRecebidos(acessos.recebidos);
           }
         })
-        .catch(() => toast.error('Erro de conexão ao carregar o Grupo Família.'))
+        .catch(() => toast.error('Sem conexão. Confira sua internet.'))
         .finally(() => setIsCarregando(false)),
     [],
   );
@@ -98,6 +130,8 @@ export default function GrupoFamilia() {
 
   const proprios = familiares.filter((f) => f.proprio);
   const compartilhados = familiares.filter((f) => !f.proprio);
+  const convitesPendentes = recebidos.filter((r) => r.status === 'PENDENTE');
+  const gruposQueParticipo = recebidos.filter((r) => r.status === 'ACEITO');
 
   const abrirNovo = () => {
     setEditandoId(null);
@@ -115,6 +149,7 @@ export default function GrupoFamilia() {
       dataNascimento: f.dataNascimento ? f.dataNascimento.slice(0, 10) : '',
     });
     setFormAberto(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const fecharForm = () => {
@@ -138,18 +173,13 @@ export default function GrupoFamilia() {
         }),
       });
       if (!response.ok) throw new Error();
-
       await carregar();
       toast.success(
-        editandoId
-          ? 'Dados atualizados!'
-          : form.tipo === 'PET'
-            ? 'Pet adicionado com sucesso!'
-            : 'Dependente adicionado com sucesso!',
+        editandoId ? 'Dados atualizados!' : form.tipo === 'PET' ? 'Pet cadastrado!' : 'Parente cadastrado!',
       );
       fecharForm();
     } catch {
-      toast.error('Erro ao salvar. Verifique os dados e tente novamente.');
+      toast.error('Não conseguimos salvar. Confira os dados e tente de novo.');
     } finally {
       setIsSalvando(false);
     }
@@ -165,14 +195,14 @@ export default function GrupoFamilia() {
       });
       if (!response.ok) {
         const erro = await response.json().catch(() => ({}));
-        toast.error(erro.message ?? 'Não foi possível enviar o convite.');
+        toast.error(erro.message ?? 'Não conseguimos enviar o convite.');
         return;
       }
       setEmailConvite('');
       await carregar();
-      toast.success('Convite enviado! A pessoa verá o convite ao entrar na conta dela.');
+      toast.success('Convite enviado! A pessoa verá o convite quando entrar no app.');
     } catch {
-      toast.error('Erro de conexão ao enviar convite.');
+      toast.error('Sem conexão. Confira sua internet.');
     } finally {
       setIsConvidando(false);
     }
@@ -186,7 +216,7 @@ export default function GrupoFamilia() {
       await carregar();
       toast.success('Convite aceito! Os dependentes compartilhados já aparecem aqui.');
     } catch {
-      toast.error('Não foi possível aceitar o convite.');
+      toast.error('Não conseguimos aceitar o convite.');
     } finally {
       setProcessandoAcesso(null);
     }
@@ -197,213 +227,189 @@ export default function GrupoFamilia() {
     setIsConfirmando(true);
     try {
       const url =
-        confirmacao.tipo === 'familiar'
-          ? `/familiares/${confirmacao.id}`
-          : `/familia/acessos/${confirmacao.id}`;
+        confirmacao.tipo === 'familiar' ? `/familiares/${confirmacao.id}` : `/familia/acessos/${confirmacao.id}`;
       const response = await apiFetch(url, { method: 'DELETE' });
       if (!response.ok) {
         const erro = await response.json().catch(() => ({}));
-        toast.error(erro.message ?? 'Não foi possível concluir a ação.');
+        toast.error(erro.message ?? 'Não foi possível concluir.');
         return;
       }
       await carregar();
-      toast.success(confirmacao.tipo === 'familiar' ? 'Removido do Grupo Família.' : 'Acesso removido.');
+      toast.success(confirmacao.tipo === 'familiar' ? 'Removido da sua família.' : 'Pronto, acesso removido.');
     } catch {
-      toast.error('Erro de conexão. Tente novamente.');
+      toast.error('Sem conexão. Tente de novo.');
     } finally {
       setIsConfirmando(false);
       setConfirmacao(null);
     }
   };
 
-  const formatarData = (iso: string | null) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-  };
-
-  const convitesPendentes = recebidos.filter((r) => r.status === 'PENDENTE');
-  const gruposQueParticipo = recebidos.filter((r) => r.status === 'ACEITO');
-
   return (
-    <div className="animate-fade-in max-w-4xl mx-auto px-4 flex flex-col gap-8">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Grupo Família</h1>
-          <p className="text-gray-600 mt-2">
-            Cadastre parentes e pets para pedir orçamentos e renovar receitas para eles.
+          <h1 className="text-3xl font-bold">Minha família</h1>
+          <p className="mt-1 text-lg text-muted-foreground">
+            Cadastre parentes e pets para pedir remédios para eles.
           </p>
         </div>
         {!formAberto && (
-          <button
-            onClick={abrirNovo}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
-          >
-            <span aria-hidden="true">➕</span> Novo Dependente
-          </button>
+          <Button onClick={abrirNovo} className="w-full sm:w-auto">
+            <UserPlus aria-hidden="true" />
+            Cadastrar parente ou pet
+          </Button>
         )}
       </div>
 
       {/* Convites recebidos */}
-      {convitesPendentes.length > 0 && (
-        <section aria-labelledby="titulo-convites" className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-          <h2 id="titulo-convites" className="font-bold text-gray-800 mb-3">
-            Convites para participar de um Grupo Família
-          </h2>
-          <div className="flex flex-col gap-3">
-            {convitesPendentes.map((c) => (
-              <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <p className="text-sm text-gray-700">
-                  <span className="font-semibold">{c.titularEmail}</span> quer compartilhar os
-                  dependentes com você.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAceitar(c.id)}
-                    disabled={processandoAcesso === c.id}
-                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {processandoAcesso === c.id ? 'Aceitando...' : 'Aceitar'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmacao({ tipo: 'acesso', id: c.id, texto: `Recusar o convite de ${c.titularEmail}?` })}
-                    disabled={processandoAcesso === c.id}
-                    className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 font-semibold rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Recusar
-                  </button>
-                </div>
-              </div>
-            ))}
+      {convitesPendentes.map((c) => (
+        <section
+          key={c.id}
+          aria-label="Convite recebido"
+          className="flex flex-col gap-4 rounded-2xl bg-status-amarelo-soft p-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="flex items-start gap-3 text-lg">
+            <Mail aria-hidden="true" className="mt-1 size-6 shrink-0 text-status-amarelo" />
+            <span>
+              <strong>{c.titularEmail}</strong> quer compartilhar a família com você.
+            </span>
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={() => handleAceitar(c.id)} disabled={processandoAcesso === c.id} className="flex-1">
+              {processandoAcesso === c.id ? (
+                <Loader2 aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Check aria-hidden="true" />
+              )}
+              Aceitar
+            </Button>
+            <Button
+              variant="destructive-outline"
+              disabled={processandoAcesso === c.id}
+              className="flex-1"
+              onClick={() =>
+                setConfirmacao({
+                  tipo: 'acesso',
+                  id: c.id,
+                  titulo: 'Recusar convite?',
+                  texto: `Você não vai ver os dependentes de ${c.titularEmail}.`,
+                  botao: 'Recusar',
+                })
+              }
+            >
+              Recusar
+            </Button>
           </div>
         </section>
-      )}
+      ))}
 
-      {/* Formulário de cadastro/edição */}
+      {/* Cadastro / edição */}
       {formAberto && (
-        <section aria-labelledby="titulo-form" className="bg-blue-50 border border-blue-100 rounded-xl p-6">
-          <h2 id="titulo-form" className="text-xl font-bold text-gray-800 mb-4">
-            {editandoId ? 'Editar Dependente' : 'Adicionar Dependente'}
+        <section aria-labelledby="titulo-form" className="rounded-2xl bg-card p-5 shadow-card sm:p-6">
+          <h2 id="titulo-form" className="text-xl font-bold">
+            {editandoId ? 'Editar cadastro' : 'Novo cadastro'}
           </h2>
-          <form onSubmit={handleSalvar} className="flex flex-col gap-4">
+          <form onSubmit={handleSalvar} className="mt-5 flex flex-col gap-5">
             <fieldset>
-              <legend className="block text-sm font-semibold text-gray-700 mb-2">Tipo</legend>
-              <div className="flex gap-2">
-                {(['PESSOA', 'PET'] as const).map((tipo) => (
-                  <label
-                    key={tipo}
-                    className={`px-4 py-2 rounded-lg border text-sm font-semibold cursor-pointer transition-colors ${
-                      form.tipo === tipo
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="tipo"
-                      value={tipo}
-                      checked={form.tipo === tipo}
-                      onChange={() => setForm((f) => ({ ...f, tipo }))}
-                      className="sr-only"
-                    />
-                    <span aria-hidden="true">{tipo === 'PESSOA' ? '👤' : '🐾'}</span>{' '}
-                    {tipo === 'PESSOA' ? 'Parente' : 'Pet'}
-                  </label>
-                ))}
+              <legend className="mb-2 text-base font-bold">É um parente ou um pet?</legend>
+              <div className="grid grid-cols-2 gap-3">
+                {(['PESSOA', 'PET'] as const).map((tipo) => {
+                  const Icone = tipo === 'PET' ? PawPrint : User;
+                  const marcado = form.tipo === tipo;
+                  return (
+                    <label
+                      key={tipo}
+                      className={cn(
+                        'flex min-h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-lg font-bold transition-colors focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-ring',
+                        marcado
+                          ? 'border-primary bg-primary-soft text-accent-foreground'
+                          : 'border-border bg-card hover:border-primary/50',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="tipo"
+                        value={tipo}
+                        checked={marcado}
+                        onChange={() => setForm((f) => ({ ...f, tipo }))}
+                        className="sr-only"
+                      />
+                      <Icone aria-hidden="true" className="size-6" />
+                      {tipo === 'PESSOA' ? 'Parente' : 'Pet'}
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
 
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label htmlFor="familiar-nome" className="block text-sm font-semibold text-gray-700 mb-1">
-                  {form.tipo === 'PET' ? 'Nome do Pet' : 'Nome Completo'}
-                </label>
-                <input
-                  id="familiar-nome"
-                  type="text"
-                  required
-                  value={form.nome}
-                  onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-                  disabled={isSalvando}
-                  className={inputClass}
-                  placeholder={form.tipo === 'PET' ? 'Ex: Thor' : 'Ex: Ana Souza'}
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="familiar-nome">{form.tipo === 'PET' ? 'Nome do pet' : 'Nome completo'}</Label>
+              <Input
+                id="familiar-nome"
+                required
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                disabled={isSalvando}
+                placeholder={form.tipo === 'PET' ? 'Ex.: Pipoca' : 'Ex.: Ana Souza'}
+              />
+            </div>
 
+            <div className="grid gap-5 sm:grid-cols-2">
               {form.tipo === 'PESSOA' ? (
-                <div className="w-full md:w-48">
-                  <label htmlFor="familiar-parentesco" className="block text-sm font-semibold text-gray-700 mb-1">
-                    Parentesco
-                  </label>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="familiar-parentesco">Parentesco</Label>
                   <select
                     id="familiar-parentesco"
                     required
                     value={form.parentesco}
                     onChange={(e) => setForm((f) => ({ ...f, parentesco: e.target.value }))}
                     disabled={isSalvando}
-                    className={inputClass}
+                    className={selectClass}
                   >
-                    <option value="">Selecione...</option>
-                    <option value="Filho(a)">Filho(a)</option>
-                    <option value="Pai/Mãe">Pai/Mãe</option>
-                    <option value="Cônjuge">Cônjuge</option>
-                    <option value="Irmão(ã)">Irmão(ã)</option>
-                    <option value="Avô/Avó">Avô/Avó</option>
-                    <option value="Outro">Outro</option>
+                    <option value="">Escolha…</option>
+                    {PARENTESCOS.map((p) => (
+                      <option key={p}>{p}</option>
+                    ))}
                   </select>
                 </div>
               ) : (
-                <div className="w-full md:w-48">
-                  <label htmlFor="familiar-especie" className="block text-sm font-semibold text-gray-700 mb-1">
-                    Espécie
-                  </label>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="familiar-especie">Espécie</Label>
                   <select
                     id="familiar-especie"
                     required
                     value={form.especie}
                     onChange={(e) => setForm((f) => ({ ...f, especie: e.target.value }))}
                     disabled={isSalvando}
-                    className={inputClass}
+                    className={selectClass}
                   >
-                    <option value="">Selecione...</option>
-                    <option value="Cão">Cão</option>
-                    <option value="Gato">Gato</option>
-                    <option value="Ave">Ave</option>
-                    <option value="Outro">Outro</option>
+                    <option value="">Escolha…</option>
+                    {ESPECIES.map((p) => (
+                      <option key={p}>{p}</option>
+                    ))}
                   </select>
                 </div>
               )}
-
-              <div className="w-full md:w-48">
-                <label htmlFor="familiar-nascimento" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Data de Nascimento
-                </label>
-                <input
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="familiar-nascimento">Data de nascimento (opcional)</Label>
+                <Input
                   id="familiar-nascimento"
                   type="date"
                   value={form.dataNascimento}
                   onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))}
                   disabled={isSalvando}
-                  className={inputClass}
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={fecharForm}
-                disabled={isSalvando}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={fecharForm} disabled={isSalvando}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSalvando}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isSalvando ? 'Salvando...' : 'Salvar'}
-              </button>
+              </Button>
+              <Button type="submit" disabled={isSalvando}>
+                {isSalvando ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Check aria-hidden="true" />}
+                {isSalvando ? 'Salvando…' : 'Salvar'}
+              </Button>
             </div>
           </form>
         </section>
@@ -411,87 +417,79 @@ export default function GrupoFamilia() {
 
       {/* Meus dependentes */}
       <section aria-labelledby="titulo-dependentes">
-        <h2 id="titulo-dependentes" className="text-lg font-bold text-gray-800 mb-3">
-          Meus dependentes
+        <h2 id="titulo-dependentes" className="mb-3 text-xl font-bold">
+          Quem eu cuido
         </h2>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {isCarregando ? (
-            <div className="p-8 text-center text-gray-500" role="status">Carregando...</div>
-          ) : proprios.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>Você ainda não tem dependentes cadastrados.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {proprios.map((familiar) => (
-                <li
-                  key={familiar.id}
-                  className="p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`p-3 rounded-full text-xl ${
-                        familiar.tipo === 'PET' ? 'bg-amber-100' : 'bg-blue-100'
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {familiar.tipo === 'PET' ? '🐾' : '👤'}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800 text-lg">{familiar.nome}</p>
-                      <p className="text-sm text-gray-500">
-                        {descricaoFamiliar(familiar)}
-                        {familiar.dataNascimento && (
-                          <span className="ml-2 text-gray-400">
-                            · Nascimento: {formatarData(familiar.dataNascimento)}
-                          </span>
-                        )}
-                      </p>
-                    </div>
+        {isCarregando ? (
+          <CartoesCarregando quantidade={2} />
+        ) : proprios.length === 0 ? (
+          <div className="rounded-2xl bg-card shadow-card">
+            <EstadoVazio
+              icone={Users}
+              titulo="Ninguém cadastrado ainda"
+              texto="Cadastre sua mãe, seu filho ou seu pet para pedir remédios para eles com poucos toques."
+              acao={
+                !formAberto && (
+                  <Button onClick={abrirNovo} size="lg" className="w-full">
+                    <UserPlus aria-hidden="true" />
+                    Cadastrar o primeiro
+                  </Button>
+                )
+              }
+            />
+          </div>
+        ) : (
+          <ul className="divide-y overflow-hidden rounded-2xl bg-card shadow-card">
+            {proprios.map((f) => (
+              <li key={f.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar tipo={f.tipo} />
+                  <div>
+                    <p className="text-lg font-bold">{f.nome}</p>
+                    <p className="text-muted-foreground">
+                      {descricaoFamiliar(f)}
+                      {f.dataNascimento && <> · nasceu em {formatarDataUTC(f.dataNascimento)}</>}
+                    </p>
                   </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => abrirEdicao(familiar)}
-                      aria-label={`Editar ${familiar.nome}`}
-                      className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 font-semibold rounded-lg transition-colors"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => setConfirmacao({ tipo: 'familiar', id: familiar.id, nome: familiar.nome })}
-                      aria-label={`Remover ${familiar.nome}`}
-                      className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 font-semibold rounded-lg transition-colors"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                </div>
+                <div className="flex gap-2 sm:justify-end">
+                  <Button variant="ghost" onClick={() => abrirEdicao(f)} aria-label={`Editar ${f.nome}`}>
+                    <Pencil aria-hidden="true" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive-soft"
+                    onClick={() => setConfirmacao({ tipo: 'familiar', id: f.id, nome: f.nome })}
+                    aria-label={`Remover ${f.nome}`}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    Remover
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
-      {/* Dependentes compartilhados comigo */}
+      {/* Compartilhados comigo */}
       {compartilhados.length > 0 && (
         <section aria-labelledby="titulo-compartilhados">
-          <h2 id="titulo-compartilhados" className="text-lg font-bold text-gray-800 mb-1">
+          <h2 id="titulo-compartilhados" className="text-xl font-bold">
             Compartilhados com você
           </h2>
-          <p className="text-sm text-gray-500 mb-3">
-            Você pode pedir orçamentos e acompanhar os pedidos destes dependentes. Só o titular pode
-            editá-los.
+          <p className="mb-3 text-muted-foreground">
+            Você pode pedir remédios e acompanhar os pedidos deles. Só quem cadastrou pode editar.
           </p>
-          <ul className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
-            {compartilhados.map((familiar) => (
-              <li key={familiar.id} className="p-5 flex items-center gap-4">
-                <div className="bg-gray-100 p-3 rounded-full text-xl" aria-hidden="true">
-                  {familiar.tipo === 'PET' ? '🐾' : '👤'}
-                </div>
+          <ul className="divide-y overflow-hidden rounded-2xl bg-card shadow-card">
+            {compartilhados.map((f) => (
+              <li key={f.id} className="flex items-center gap-4 p-5">
+                <Avatar tipo={f.tipo} />
                 <div>
-                  <p className="font-semibold text-gray-800">{familiar.nome}</p>
-                  <p className="text-sm text-gray-500">
-                    {descricaoFamiliar(familiar)} · titular: {familiar.titularEmail}
+                  <p className="text-lg font-bold">{f.nome}</p>
+                  <p className="text-muted-foreground">
+                    {descricaoFamiliar(f)} · família de {f.titularEmail}
                   </p>
                 </div>
               </li>
@@ -499,71 +497,90 @@ export default function GrupoFamilia() {
           </ul>
           <div className="mt-2 flex flex-wrap gap-2">
             {gruposQueParticipo.map((g) => (
-              <button
+              <Button
                 key={g.id}
-                onClick={() => setConfirmacao({ tipo: 'acesso', id: g.id, texto: `Sair do Grupo Família de ${g.titularEmail}? Você deixará de ver os dependentes e os pedidos desse grupo.` })}
-                className="text-xs text-red-600 hover:underline"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive-soft"
+                onClick={() =>
+                  setConfirmacao({
+                    tipo: 'acesso',
+                    id: g.id,
+                    titulo: 'Sair desta família?',
+                    texto: `Você deixa de ver os dependentes e pedidos da família de ${g.titularEmail}.`,
+                    botao: 'Sair',
+                  })
+                }
               >
-                Sair do grupo de {g.titularEmail}
-              </button>
+                Sair da família de {g.titularEmail}
+              </Button>
             ))}
           </div>
         </section>
       )}
 
-      {/* Compartilhar meu grupo */}
-      <section aria-labelledby="titulo-compartilhar" className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 id="titulo-compartilhar" className="text-lg font-bold text-gray-800">
-          Compartilhar com a família
+      {/* Compartilhar minha família */}
+      <section aria-labelledby="titulo-compartilhar" className="rounded-2xl bg-card p-5 shadow-card sm:p-6">
+        <h2 id="titulo-compartilhar" className="flex items-center gap-2 text-xl font-bold">
+          <Share2 aria-hidden="true" className="size-6 text-primary" />
+          Dividir os cuidados com alguém
         </h2>
-        <p className="text-sm text-gray-500 mt-1 mb-4">
-          Convide outro membro da família (ex.: cônjuge) pelo e-mail cadastrado no app. Quem aceitar poderá
-          pedir orçamentos e acompanhar os pedidos dos seus dependentes. Seus pedidos pessoais
-          continuam visíveis só para você.
+        <p className="mt-1 text-muted-foreground">
+          Convide outra pessoa da família (ex.: marido, esposa, irmã) pelo e-mail que ela usa no app. Quem
+          aceitar pode pedir remédios e acompanhar os pedidos de quem você cuida. Seus pedidos pessoais
+          continuam só seus.
         </p>
-        <form onSubmit={handleConvidar} className="flex flex-col sm:flex-row gap-3">
-          <label htmlFor="email-convite" className="sr-only">
-            E-mail do membro da família
-          </label>
-          <input
-            id="email-convite"
-            type="email"
-            required
-            value={emailConvite}
-            onChange={(e) => setEmailConvite(e.target.value)}
-            disabled={isConvidando}
-            placeholder="email@exemplo.com"
-            className={`${inputClass} sm:flex-1`}
-          />
-          <button
-            type="submit"
-            disabled={isConvidando}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-          >
-            {isConvidando ? 'Enviando...' : 'Enviar convite'}
-          </button>
+        <form onSubmit={handleConvidar} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-1 flex-col gap-2">
+            <Label htmlFor="email-convite">E-mail da pessoa</Label>
+            <Input
+              id="email-convite"
+              type="email"
+              required
+              autoComplete="off"
+              value={emailConvite}
+              onChange={(e) => setEmailConvite(e.target.value)}
+              disabled={isConvidando}
+              placeholder="nome@exemplo.com"
+            />
+          </div>
+          <Button type="submit" disabled={isConvidando}>
+            {isConvidando ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Mail aria-hidden="true" />}
+            {isConvidando ? 'Enviando…' : 'Enviar convite'}
+          </Button>
         </form>
 
         {concedidos.length > 0 && (
-          <ul className="mt-5 divide-y divide-gray-100 border-t border-gray-100">
+          <ul className="mt-5 divide-y border-t">
             {concedidos.map((c) => (
-              <li key={c.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-800">{c.emailConvidado}</span>
+              <li key={c.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="break-all">{c.emailConvidado}</span>
                   <span
-                    className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                      c.status === 'ACEITO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                    }`}
+                    className={cn(
+                      'rounded-full px-3 py-0.5 text-sm font-bold',
+                      c.status === 'ACEITO'
+                        ? 'bg-status-verde-soft text-status-verde'
+                        : 'bg-status-laranja-soft text-status-laranja',
+                    )}
                   >
-                    {c.status === 'ACEITO' ? 'Com acesso' : 'Convite pendente'}
+                    {c.status === 'ACEITO' ? 'Com acesso' : 'Convite enviado'}
                   </span>
-                </div>
-                <button
-                  onClick={() => setConfirmacao({ tipo: 'acesso', id: c.id, texto: `Remover o acesso de ${c.emailConvidado} ao seu Grupo Família?` })}
-                  className="self-start sm:self-auto px-3 py-1 text-sm text-red-600 hover:bg-red-50 font-semibold rounded-lg transition-colors"
+                </span>
+                <Button
+                  variant="ghost"
+                  className="self-start text-destructive hover:bg-destructive-soft sm:self-auto"
+                  onClick={() =>
+                    setConfirmacao({
+                      tipo: 'acesso',
+                      id: c.id,
+                      titulo: c.status === 'ACEITO' ? 'Tirar o acesso?' : 'Cancelar convite?',
+                      texto: `${c.emailConvidado} deixa de ver quem você cuida.`,
+                      botao: c.status === 'ACEITO' ? 'Tirar acesso' : 'Cancelar convite',
+                    })
+                  }
                 >
-                  {c.status === 'ACEITO' ? 'Revogar acesso' : 'Cancelar convite'}
-                </button>
+                  {c.status === 'ACEITO' ? 'Tirar acesso' : 'Cancelar convite'}
+                </Button>
               </li>
             ))}
           </ul>
@@ -572,13 +589,13 @@ export default function GrupoFamilia() {
 
       <ConfirmDialog
         aberto={confirmacao !== null}
-        titulo={confirmacao?.tipo === 'familiar' ? 'Remover dependente' : 'Confirmar'}
+        titulo={confirmacao?.tipo === 'familiar' ? `Remover ${confirmacao.nome}?` : (confirmacao?.titulo ?? '')}
         mensagem={
           confirmacao?.tipo === 'familiar'
-            ? `Deseja realmente remover ${confirmacao.nome} do Grupo Família?`
+            ? 'O cadastro sai da sua família. Quem já tem pedidos no histórico não pode ser removido.'
             : (confirmacao?.texto ?? '')
         }
-        textoConfirmar={confirmacao?.tipo === 'familiar' ? 'Remover' : 'Confirmar'}
+        textoConfirmar={confirmacao?.tipo === 'familiar' ? 'Remover' : (confirmacao?.botao ?? 'Confirmar')}
         processando={isConfirmando}
         onConfirmar={handleConfirmar}
         onCancelar={() => setConfirmacao(null)}

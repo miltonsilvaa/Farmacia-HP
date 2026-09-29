@@ -1,16 +1,23 @@
-// Posologia em destaque e com letra grande: o cliente (muitas vezes idoso)
-// consulta aqui em vez de ligar para a farmácia ou procurar a receita impressa
+import { Pill } from 'lucide-react';
+
+// Posologia sempre à mão, em letra grande: substitui a receita impressa perdida
 export default function ComoTomar({ posologia }: { posologia: string | null }) {
   if (!posologia) return null;
   return (
     <section
       aria-label="Como tomar"
-      className="bg-amber-50 border-l-4 border-amber-400 rounded-r-lg p-4"
+      className="flex gap-4 rounded-xl bg-status-azul-soft p-4"
     >
-      <p className="text-sm font-bold text-amber-900 uppercase tracking-wide flex items-center gap-2">
-        <span aria-hidden="true">💊</span> Como tomar
-      </p>
-      <p className="mt-1 text-lg text-gray-900 leading-relaxed whitespace-pre-line">{posologia}</p>
+      <span
+        aria-hidden="true"
+        className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-status-azul shadow-card"
+      >
+        <Pill className="size-6" />
+      </span>
+      <div>
+        <p className="font-bold text-status-azul">Como tomar</p>
+        <p className="mt-0.5 text-lg leading-relaxed whitespace-pre-line">{posologia}</p>
+      </div>
     </section>
   );
 }

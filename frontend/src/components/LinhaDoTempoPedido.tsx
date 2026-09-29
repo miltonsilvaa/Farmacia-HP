@@ -1,7 +1,10 @@
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 const ETAPAS = [
   { titulo: 'Solicitado', status: ['PENDENTE', 'AGUARDANDO_PAGAMENTO'] },
   { titulo: 'Em manipulação', status: ['PRODUCAO'] },
-  { titulo: 'Pronto para retirada/envio', status: ['FINALIZADO'] },
+  { titulo: 'Pronto para retirada', status: ['FINALIZADO'] },
   { titulo: 'Entregue', status: ['ENTREGUE'] },
 ];
 
@@ -23,31 +26,31 @@ export default function LinhaDoTempoPedido({ status }: { status: string }) {
             aria-current={ehAtual ? 'step' : undefined}
             className="relative flex flex-col items-center text-center"
           >
-            {/* Trilho até a etapa anterior */}
             {i > 0 && (
               <span
                 aria-hidden="true"
-                className={`absolute top-3.5 right-1/2 w-full h-1 -z-0 ${
-                  i <= atual ? 'bg-emerald-500' : 'bg-gray-200'
-                }`}
+                className={cn(
+                  'absolute top-[1.05rem] right-1/2 h-1 w-full rounded-full',
+                  i <= atual ? 'bg-primary' : 'bg-border',
+                )}
               />
             )}
             <span
               aria-hidden="true"
-              className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
-                feita
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : ehAtual
-                    ? 'bg-white border-emerald-500 text-emerald-700 ring-4 ring-emerald-100'
-                    : 'bg-white border-gray-300 text-gray-400'
-              }`}
+              className={cn(
+                'relative z-10 grid size-9 place-items-center rounded-full border-2 text-base font-bold transition-colors',
+                feita && 'border-primary bg-primary text-primary-foreground',
+                ehAtual && 'border-primary bg-card text-primary ring-4 ring-primary/15',
+                !feita && !ehAtual && 'border-border bg-card text-muted-foreground',
+              )}
             >
-              {feita ? '✓' : i + 1}
+              {feita ? <Check className="size-5" strokeWidth={3} /> : i + 1}
             </span>
             <span
-              className={`mt-2 px-1 text-xs sm:text-sm leading-tight ${
-                ehAtual ? 'font-bold text-emerald-800' : feita ? 'text-gray-700' : 'text-gray-400'
-              }`}
+              className={cn(
+                'mt-2 px-1 text-sm leading-tight',
+                ehAtual ? 'font-bold text-accent-foreground' : feita ? 'text-foreground' : 'text-muted-foreground',
+              )}
             >
               {etapa.titulo}
               <span className="sr-only">

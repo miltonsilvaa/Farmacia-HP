@@ -1,7 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { apiFetch } from '../lib/api';
+import { ChevronRight, FileText, Inbox, Loader2, Paperclip, Send, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+import { formatarData, formatarMoeda, numeroPedido } from '@/lib/format';
+import { CLASSES_COR, infoStatus } from '@/lib/status';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import EstadoVazio from '@/components/EstadoVazio';
+import { LinhasCarregando } from '@/components/Carregando';
 
 interface OrcamentoItem {
   id: string;
@@ -21,318 +39,264 @@ interface OrcamentoAdmin {
   preco: string | null;
   usuario: { email: string };
   itens: OrcamentoItem[];
+  anexos: { id: string; arquivoUrl: string; nomeArquivo: string }[];
   familiar: { nome: string; parentesco: string } | null;
 }
 
+// Etapas que a equipe acompanha no dia a dia (links levam à lista já filtrada)
+const RESUMO = ['PENDENTE', 'AGUARDANDO_PAGAMENTO', 'PRODUCAO', 'FINALIZADO'];
+
 export default function DashboardAdmin() {
-  const [orcamentos, setOrcamentos] = useState<OrcamentoAdmin[]>([]);
-  const [isCarregando, setIsCarregando] = useState(true);
+  const [orcamentos, setOrcamentos] = useState<OrcamentoAdmin[] | null>(null);
   const [selecionado, setSelecionado] = useState<OrcamentoAdmin | null>(null);
   const [precoInput, setPrecoInput] = useState('');
   const [respostaInput, setRespostaInput] = useState('');
   const [posologiaInput, setPosologiaInput] = useState('');
-  const [isAvaliando, setIsAvaliando] = useState(false);
+  const [avaliando, setAvaliando] = useState<'AGUARDANDO_PAGAMENTO' | 'RECUSADO' | null>(null);
+
+  const carregar = useCallback(
+    () =>
+      apiFetch('/orcamentos/admin')
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then(setOrcamentos)
+        .catch(() => {
+          setOrcamentos((atual) => atual ?? []);
+          toast.error('Não foi possível carregar os pedidos.');
+        }),
+    [],
+  );
 
   useEffect(() => {
-    carregarOrcamentos();
-  }, []);
+    carregar();
+  }, [carregar]);
 
-  const carregarOrcamentos = async () => {
-    setIsCarregando(true);
-    try {
-      const res = await apiFetch('/orcamentos/admin');
-      if (res.ok) {
-        setOrcamentos(await res.json());
-      } else {
-        toast.error('Erro ao carregar orçamentos.');
-      }
-    } catch {
-      toast.error('Erro de conexão.');
-    } finally {
-      setIsCarregando(false);
-    }
+  const abrir = (o: OrcamentoAdmin) => {
+    setSelecionado(o);
+    setPrecoInput('');
+    setRespostaInput('');
+    // Renovações já chegam com o modo de uso do pedido anterior
+    setPosologiaInput(o.posologia ?? '');
   };
 
   const handleAvaliar = async (status: 'AGUARDANDO_PAGAMENTO' | 'RECUSADO') => {
     if (!selecionado) return;
-    if (status === 'AGUARDANDO_PAGAMENTO' && !precoInput) {
-      toast.error('Informe o preço antes de enviar o orçamento.');
+    const preco = parseFloat(precoInput.replace(',', '.'));
+    if (status === 'AGUARDANDO_PAGAMENTO' && !(preco > 0)) {
+      toast.error('Informe o preço da manipulação antes de enviar o orçamento.');
+      return;
+    }
+    if (status === 'RECUSADO' && !respostaInput.trim()) {
+      toast.error('Escreva o motivo da recusa: o cliente vai ler essa mensagem.');
       return;
     }
 
-    setIsAvaliando(true);
+    setAvaliando(status);
     try {
-      const body: Record<string, unknown> = {
-        status,
-        respostaAdmin: respostaInput || undefined,
-      };
+      const body: Record<string, unknown> = { status, respostaAdmin: respostaInput || undefined };
       if (status === 'AGUARDANDO_PAGAMENTO') {
-        body.preco = parseFloat(precoInput.replace(',', '.'));
+        body.preco = preco;
         body.posologia = posologiaInput;
       }
-
       const res = await apiFetch(`/orcamentos/admin/${selecionado.id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-
-      if (!res.ok) throw new Error();
-
-      const atualizado = await res.json();
-      setOrcamentos((prev) =>
-        prev.map((o) => (o.id === atualizado.id ? { ...o, ...atualizado } : o)),
-      );
-      toast.success(
-        status === 'AGUARDANDO_PAGAMENTO'
-          ? 'Orçamento enviado ao cliente!'
-          : 'Receita recusada.',
-      );
+      if (!res.ok) {
+        const erro = await res.json().catch(() => ({}));
+        throw new Error(erro.message);
+      }
+      await carregar();
+      toast.success(status === 'AGUARDANDO_PAGAMENTO' ? 'Orçamento enviado ao cliente.' : 'Receita recusada.');
       setSelecionado(null);
-      setPrecoInput('');
-      setRespostaInput('');
-      setPosologiaInput('');
-    } catch {
-      toast.error('Erro ao avaliar orçamento.');
+    } catch (e) {
+      toast.error((e as Error).message || 'Não foi possível avaliar o pedido.');
     } finally {
-      setIsAvaliando(false);
+      setAvaliando(null);
     }
   };
 
-  const pendentes = orcamentos.filter((o) => o.status === 'PENDENTE');
-  const aguardando = orcamentos.filter((o) => o.status === 'AGUARDANDO_PAGAMENTO');
-  const finalizados = orcamentos.filter(
-    (o) => o.status !== 'PENDENTE' && o.status !== 'AGUARDANDO_PAGAMENTO',
-  );
-
-  const formatarData = (iso: string) =>
-    new Date(iso).toLocaleDateString('pt-BR');
+  const pendentes = (orcamentos ?? []).filter((o) => o.status === 'PENDENTE');
+  const contar = (s: string) => (orcamentos ?? []).filter((o) => o.status === s).length;
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Bem-vindo, Farmacêutico!</h2>
-          <p className="text-gray-600">Confira as solicitações de orçamento do dia.</p>
-        </div>
-        <Link
-          to="/admin/produtos"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm transition-colors"
-        >
-          Gerenciar Catálogo
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold">Fila do dia</h1>
+        <p className="mt-1 text-lg text-muted-foreground">Receitas que esperam orçamento, da mais antiga para a mais nova.</p>
       </div>
 
-      {/* Estatísticas reais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <p className="text-sm font-medium text-gray-500 mb-1">Pedidos Pendentes</p>
-          <p className="text-3xl font-bold text-orange-600">
-            {isCarregando ? '—' : pendentes.length}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <p className="text-sm font-medium text-gray-500 mb-1">Aguardando Pagamento</p>
-          <p className="text-3xl font-bold text-blue-600">
-            {isCarregando ? '—' : aguardando.length}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <p className="text-sm font-medium text-gray-500 mb-1">Finalizados / Recusados</p>
-          <p className="text-3xl font-bold text-green-600">
-            {isCarregando ? '—' : finalizados.length}
-          </p>
-        </div>
-      </div>
+      {/* Onde está cada pedido: atalho para a lista filtrada */}
+      <nav aria-label="Resumo por status">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {RESUMO.map((status) => {
+            const info = infoStatus(status);
+            const Icone = info.icone;
+            return (
+              <li key={status} className="h-full">
+                <Link
+                  to={`/admin/pedidos?status=${status}`}
+                  className="flex h-full min-h-18 items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-card transition-shadow hover:shadow-float"
+                >
+                  <span className={cn('grid size-11 shrink-0 place-items-center rounded-full', CLASSES_COR[info.cor])}>
+                    <Icone aria-hidden="true" className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="tabular block text-2xl font-bold leading-tight">
+                      {orcamentos === null ? '–' : contar(status)}
+                    </span>
+                    <span className="block leading-snug text-muted-foreground">{info.rotuloAdmin}</span>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
-      {/* Caixa de Entrada */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="font-bold text-gray-800 text-lg">Últimas Receitas Recebidas (Pendentes)</h3>
-          <Link
-            to="/admin/pedidos"
-            className="text-blue-600 text-sm font-semibold hover:underline"
-          >
-            Ver todas
+      <section aria-labelledby="titulo-fila" className="overflow-hidden rounded-2xl bg-card shadow-card">
+        <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+          <h2 id="titulo-fila" className="text-xl font-bold">
+            Aguardando orçamento{' '}
+            <span className="tabular text-muted-foreground">({orcamentos === null ? '…' : pendentes.length})</span>
+          </h2>
+          <Link to="/admin/pedidos" className="inline-flex min-h-12 items-center gap-1 font-bold text-primary hover:text-primary-hover">
+            Todos os pedidos
+            <ChevronRight aria-hidden="true" className="size-5" />
           </Link>
         </div>
 
-        {isCarregando ? (
-          <div className="p-8 text-center text-gray-500">Carregando...</div>
+        {orcamentos === null ? (
+          <LinhasCarregando quantidade={4} />
         ) : pendentes.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <div className="text-4xl mb-4">📂</div>
-            <p>Nenhuma receita pendente no momento.</p>
-            <p className="text-sm">Novas solicitações aparecerão automaticamente aqui.</p>
-          </div>
+          <EstadoVazio
+            icone={Inbox}
+            titulo="Nenhuma receita esperando"
+            texto="Quando um cliente enviar uma receita, ela aparece aqui para você avaliar."
+          />
         ) : (
-          <div className="divide-y divide-gray-100">
-            {pendentes.map((o) => (
-              <div
-                key={o.id}
-                className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="bg-orange-50 text-orange-500 p-3 rounded-lg text-xl">📄</div>
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      Pedido #{o.id.substring(0, 8).toUpperCase()}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {o.usuario.email} · {formatarData(o.criadoEm)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelecionado(o);
-                    setPrecoInput('');
-                    setRespostaInput('');
-                    // Renovações já chegam com o modo de uso do pedido anterior
-                    setPosologiaInput(o.posologia ?? '');
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors"
-                >
-                  Avaliar Receita
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal de Avaliação */}
-      {selecionado && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-800">
-                Avaliar Pedido #{selecionado.id.substring(0, 8).toUpperCase()}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Cliente: {selecionado.usuario.email}
-              </p>
-              <p className="text-sm text-gray-500">
-                Paciente:{' '}
-                <span className="font-medium text-gray-700">
-                  {selecionado.familiar
-                    ? `${selecionado.familiar.nome} (${selecionado.familiar.parentesco})`
-                    : 'Titular da Conta'}
-                </span>
-              </p>
-            </div>
-
-            <div className="p-6 flex flex-col gap-5">
-              {/* Link da receita */}
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">Receita Médica</p>
-                <a
-                  href={selecionado.arquivoReceitaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-                >
-                  <span>📎</span> Abrir arquivo da receita
-                </a>
-                {selecionado.observacoes && (
-                  <p className="mt-2 text-sm text-gray-500 italic">
-                    Obs. do cliente: {selecionado.observacoes}
+          <ul className="divide-y">
+            {[...pendentes].reverse().map((o) => (
+              <li key={o.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-bold">
+                    <span className="tabular">#{numeroPedido(o.id)}</span>
+                    {o.observacoes?.startsWith('[Renovação') && (
+                      <span className="ml-2 rounded-full bg-status-azul-soft px-2.5 py-0.5 text-sm text-status-azul">Renovação</span>
+                    )}
                   </p>
-                )}
+                  <p className="truncate text-muted-foreground">
+                    {o.familiar ? `${o.familiar.nome} (${o.familiar.parentesco})` : 'Titular'} · {o.usuario.email} ·{' '}
+                    {formatarData(o.criadoEm)}
+                  </p>
+                </div>
+                <Button onClick={() => abrir(o)}>Avaliar receita</Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-                {/* Itens do pedido */}
-                {selecionado.itens && selecionado.itens.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                      Produtos solicitados
-                    </p>
-                    <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-1">
-                      {selecionado.itens.map((item) => (
-                        <div key={item.id} className="flex justify-between text-sm text-gray-700">
-                          <span>{item.produto.nome} × {item.quantidade}</span>
-                          <span className="text-gray-500">
-                            R$ {(Number(item.precoUnitario) * item.quantidade).toFixed(2).replace('.', ',')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+      {/* Avaliação: tarefa focada, merece o modal */}
+      <Dialog open={selecionado !== null} onOpenChange={(aberto) => !aberto && !avaliando && setSelecionado(null)}>
+        {selecionado && (
+          <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Avaliar pedido #{numeroPedido(selecionado.id)}</DialogTitle>
+              <DialogDescription>
+                {selecionado.familiar
+                  ? `${selecionado.familiar.nome} (${selecionado.familiar.parentesco})`
+                  : 'Para o titular'}{' '}
+                · {selecionado.usuario.email}
+              </DialogDescription>
+            </DialogHeader>
 
-              {/* Preço */}
-              <div>
-                <label htmlFor="dashboardadmin-campo-1" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Preço da Manipulação (R$)
-                </label>
-                <input id="dashboardadmin-campo-1"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={precoInput}
-                  onChange={(e) => setPrecoInput(e.target.value)}
-                  placeholder="Ex: 89.90"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Resposta */}
-              <div>
-                <label htmlFor="dashboardadmin-campo-2" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Observações ao Cliente (Opcional)
-                </label>
-                <textarea id="dashboardadmin-campo-2"
-                  rows={3}
-                  value={respostaInput}
-                  onChange={(e) => setRespostaInput(e.target.value)}
-                  placeholder="Ex: Prazo de preparo: 3 dias úteis."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-                />
-              </div>
-
-              {/* Posologia */}
-              <div>
-                <label htmlFor="dashboardadmin-posologia" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Modo de Uso / Posologia (Opcional)
-                </label>
-                <textarea id="dashboardadmin-posologia"
-                  rows={2}
-                  value={posologiaInput}
-                  onChange={(e) => setPosologiaInput(e.target.value)}
-                  placeholder="Ex: Tomar 10 gotas, 2 vezes ao dia, longe das refeições."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Aparece para o cliente no histórico do pedido. Pode ser ajustado depois em Pedidos.
-                </p>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <a href={selecionado.arquivoReceitaUrl} target="_blank" rel="noopener noreferrer">
+                  <FileText aria-hidden="true" />
+                  Abrir receita
+                </a>
+              </Button>
+              {selecionado.anexos?.map((a, i) => (
+                <Button key={a.id} asChild variant="outline" size="sm">
+                  <a href={a.arquivoUrl} target="_blank" rel="noopener noreferrer" title={a.nomeArquivo}>
+                    <Paperclip aria-hidden="true" />
+                    Anexo {i + 1}
+                  </a>
+                </Button>
+              ))}
             </div>
 
-            <div className="p-6 pt-0 flex gap-3 justify-end">
-              <button
-                onClick={() => setSelecionado(null)}
-                disabled={isAvaliando}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleAvaliar('RECUSADO')}
-                disabled={isAvaliando}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isAvaliando ? '...' : 'Recusar Receita'}
-              </button>
-              <button
-                onClick={() => handleAvaliar('AGUARDANDO_PAGAMENTO')}
-                disabled={isAvaliando}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isAvaliando ? '...' : 'Enviar Orçamento'}
-              </button>
+            {selecionado.observacoes && (
+              <p className="rounded-xl bg-muted/60 px-4 py-3">
+                <span className="font-bold">Recado do cliente:</span> {selecionado.observacoes}
+              </p>
+            )}
+
+            {selecionado.itens.length > 0 && (
+              <div className="tabular rounded-xl bg-muted/60 px-4 py-3">
+                <p className="font-bold">Produtos pedidos</p>
+                {selecionado.itens.map((i) => (
+                  <p key={i.id} className="flex justify-between gap-3">
+                    <span>
+                      {i.produto.nome} × {i.quantidade}
+                    </span>
+                    <span>{formatarMoeda(Number(i.precoUnitario) * i.quantidade)}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="avaliar-preco">Preço total (R$)</Label>
+              <Input
+                id="avaliar-preco"
+                inputMode="decimal"
+                value={precoInput}
+                onChange={(e) => setPrecoInput(e.target.value)}
+                placeholder="Ex.: 89,90"
+                className="tabular"
+              />
             </div>
-          </div>
-        </div>
-      )}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="avaliar-posologia">Como tomar (aparece para o cliente)</Label>
+              <Textarea
+                id="avaliar-posologia"
+                rows={2}
+                value={posologiaInput}
+                onChange={(e) => setPosologiaInput(e.target.value)}
+                placeholder="Ex.: 10 gotas, 2 vezes ao dia, longe das refeições."
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="avaliar-resposta">Mensagem ao cliente</Label>
+              <Textarea
+                id="avaliar-resposta"
+                rows={2}
+                value={respostaInput}
+                onChange={(e) => setRespostaInput(e.target.value)}
+                placeholder="Ex.: fica pronto em 3 dias úteis. (Obrigatória para recusar)"
+              />
+            </div>
+
+            <DialogFooter className="gap-3">
+              <Button variant="destructive-outline" onClick={() => handleAvaliar('RECUSADO')} disabled={avaliando !== null}>
+                {avaliando === 'RECUSADO' ? <Loader2 aria-hidden="true" className="animate-spin" /> : <X aria-hidden="true" />}
+                Recusar receita
+              </Button>
+              <Button onClick={() => handleAvaliar('AGUARDANDO_PAGAMENTO')} disabled={avaliando !== null}>
+                {avaliando === 'AGUARDANDO_PAGAMENTO' ? (
+                  <Loader2 aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Send aria-hidden="true" />
+                )}
+                Enviar orçamento
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

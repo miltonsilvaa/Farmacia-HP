@@ -136,3 +136,28 @@
 - [x] Prisma, MinIO (`MinioService`) e e-mail (`EmailService`) direto nos serviços
 - [x] Erros com exceções nativas do NestJS (`HttpException` e subclasses) + filtro global para erros do Prisma
 - [x] Testes Jest do fluxo de 1 clique e do Grupo Família
+
+# Etapa 3 — Visual e navegação (29/09/2026)
+
+> Backup antes desta etapa: tag `snapshot-qualidade-fase2-2026-09-28`. Sem mudança de banco nem de backend. **Frontend tem dependências novas** (shadcn/ui, Radix, lucide-react, sonner, fonte Atkinson Hyperlegible Next): rodar `npm install` ou `docker compose up --build`.
+
+Design system (`frontend/src/index.css`, `DESIGN.md`):
+- Tailwind v4 + shadcn/ui (botão, modal, alerta, campo, skeleton), com ícones Lucide sempre acompanhados de texto
+- Fonte Atkinson Hyperlegible Next (desenhada para baixa visão), corpo de 18 px, números tabulares nos preços
+- Verde-farmácia como única cor de ação; vocabulário fixo de status com cor + ícone + texto: Aguardando orçamento (laranja), Orçamento pronto (amarelo), Em manipulação (azul), Pronto (verde), Entregue/Cancelado (cinza), Recusado (vermelho). Contraste AA em todo texto
+- Botões com no mínimo 48 px (56 px nas ações principais), foco de teclado visível, link "Pular para o conteúdo"
+
+Cliente:
+- Navegação inferior fixa no celular (Início, Enviar receita, Meus pedidos, Família) e barra superior no computador
+- Início: o pedido que precisa de você (ou o em andamento) com a linha do tempo, botão "Enviar receita" em destaque, remédios para renovar (nome, posologia, data) e atalhos
+- Enviar receita em 4 passos: para quem é (parente, pet ou você) → foto da receita (botão grande de câmera) e anexos → recado e produtos (com sugestões) → conferir e enviar; confirmação com o número do pedido e os próximos passos
+- Meus pedidos agrupado em "Precisa da sua resposta", "Em andamento" e "Histórico"; renovação abre modal de confirmação com paciente, remédio, como tomar, último valor e retirada; recusar orçamento pede confirmação
+- Login com "Mostrar senha"; removidos "Lembrar de mim" e "Esqueceu a senha?", que não funcionavam
+- Avisos com sonner (verde/vermelho), esqueletos de carregamento e telas vazias que explicam o próximo passo
+
+Farmácia:
+- Barra lateral; "Fila do dia" com atalhos por status e as receitas esperando orçamento (da mais antiga para a mais nova); recusar exige mensagem ao cliente
+- Pedidos com filtros coloridos por status, busca por número/e-mail/paciente, próximo passo em um clique e detalhes (arquivos, posologia, ERP) em modal; no celular vira lista de cartões
+- Catálogo e relatórios no mesmo visual
+
+Removido: páginas antigas sem rota (`Dashboard`, `Produtos`, `Vendas`) e `App.css`. Proxy de desenvolvimento passa a incluir `/familia`.

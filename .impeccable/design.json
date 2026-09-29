@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-29T00:00:00Z",
+  "title": "Design System: Grupo Farmácia HP",
+  "extensions": {
+    "colorMeta": {
+      "pharmacy-green": {
+        "role": "primary",
+        "displayName": "Verde-Farmácia",
+        "canonical": "#0b7250",
+        "tonalRamp": [
+          "oklch(15% 0.102 163.5)",
+          "oklch(26% 0.102 163.5)",
+          "oklch(37% 0.102 163.5)",
+          "oklch(48% 0.102 163.5)",
+          "oklch(60% 0.102 163.5)",
+          "oklch(72% 0.102 163.5)",
+          "oklch(84% 0.102 163.5)",
+          "oklch(95% 0.03 163.5)"
+        ]
+      },
+      "pharmacy-green-deep": {
+        "role": "primary",
+        "displayName": "Verde-Farmácia Fundo",
+        "canonical": "#095c41",
+        "tonalRamp": [
+          "oklch(15% 0.086 164.3)",
+          "oklch(26% 0.086 164.3)",
+          "oklch(37% 0.086 164.3)",
+          "oklch(48% 0.086 164.3)",
+          "oklch(60% 0.086 164.3)",
+          "oklch(72% 0.086 164.3)",
+          "oklch(84% 0.086 164.3)",
+          "oklch(95% 0.03 164.3)"
+        ]
+      },
+      "green-ink": {
+        "role": "primary",
+        "displayName": "Tinta Verde",
+        "canonical": "#07513a",
+        "tonalRamp": [
+          "oklch(15% 0.078 165.4)",
+          "oklch(26% 0.078 165.4)",
+          "oklch(37% 0.078 165.4)",
+          "oklch(48% 0.078 165.4)",
+          "oklch(60% 0.078 165.4)",
+          "oklch(72% 0.078 165.4)",
+          "oklch(84% 0.078 165.4)",
+          "oklch(95% 0.03 165.4)"
+        ]
+      },
+      "mint-wash": {
+        "role": "primary",
+        "displayName": "Lavado de Menta",
+        "canonical": "#e3f2eb",
+        "tonalRamp": [
+          "oklch(15% 0.018 166.4)",
+          "oklch(26% 0.018 166.4)",
+          "oklch(37% 0.018 166.4)",
+          "oklch(48% 0.018 166.4)",
+          "oklch(60% 0.018 166.4)",
+          "oklch(72% 0.018 166.4)",
+          "oklch(84% 0.018 166.4)",
+          "oklch(95% 0.018 166.4)"
+        ]
+      },
+      "cool-mist": {
+        "role": "neutral",
+        "displayName": "Névoa Fria",
+        "canonical": "#f3f6f5",
+        "tonalRamp": [
+          "oklch(15% 0.003 174.5)",
+          "oklch(26% 0.003 174.5)",
+          "oklch(37% 0.003 174.5)",
+          "oklch(48% 0.003 174.5)",
+          "oklch(60% 0.003 174.5)",
+          "oklch(72% 0.003 174.5)",
+          "oklch(84% 0.003 174.5)",
+          "oklch(95% 0.003 174.5)"
+        ]
+      },
+      "clinical-white": {
+        "role": "neutral",
+        "displayName": "Branco Clínico",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.0 89.9)",
+          "oklch(26% 0.0 89.9)",
+          "oklch(37% 0.0 89.9)",
+          "oklch(48% 0.0 89.9)",
+          "oklch(60% 0.0 89.9)",
+          "oklch(72% 0.0 89.9)",
+          "oklch(84% 0.0 89.9)",
+          "oklch(95% 0.0 89.9)"
+        ]
+      },
+      "deep-ink": {
+        "role": "neutral",
+        "displayName": "Tinta Profunda",
+        "canonical": "#0f1f19",
+        "tonalRamp": [
+          "oklch(15% 0.025 168.2)",
+          "oklch(26% 0.025 168.2)",
+          "oklch(37% 0.025 168.2)",
+          "oklch(48% 0.025 168.2)",
+          "oklch(60% 0.025 168.2)",
+          "oklch(72% 0.025 168.2)",
+          "oklch(84% 0.025 168.2)",
+          "oklch(95% 0.025 168.2)"
+        ]
+      },
+      "sage-slate": {
+        "role": "neutral",
+        "displayName": "Ardósia Sálvia",
+        "canonical": "#4b5c55",
+        "tonalRamp": [
+          "oklch(15% 0.024 168.4)",
+          "oklch(26% 0.024 168.4)",
+          "oklch(37% 0.024 168.4)",
+          "oklch(48% 0.024 168.4)",
+          "oklch(60% 0.024 168.4)",
+          "oklch(72% 0.024 168.4)",
+          "oklch(84% 0.024 168.4)",
+          "oklch(95% 0.024 168.4)"
+        ]
+      },
+      "quiet-sage": {
+        "role": "neutral",
+        "displayName": "Sálvia Quieta",
+        "canonical": "#e9efec",
+        "tonalRamp": [
+          "oklch(15% 0.008 164.9)",
+          "oklch(26% 0.008 164.9)",
+          "oklch(37% 0.008 164.9)",
+          "oklch(48% 0.008 164.9)",
+          "oklch(60% 0.008 164.9)",
+          "oklch(72% 0.008 164.9)",
+          "oklch(84% 0.008 164.9)",
+          "oklch(95% 0.008 164.9)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Fio",
+        "canonical": "#d3ddd9",
+        "tonalRamp": [
+          "oklch(15% 0.012 170.2)",
+          "oklch(26% 0.012 170.2)",
+          "oklch(37% 0.012 170.2)",
+          "oklch(48% 0.012 170.2)",
+          "oklch(60% 0.012 170.2)",
+          "oklch(72% 0.012 170.2)",
+          "oklch(84% 0.012 170.2)",
+          "oklch(95% 0.012 170.2)"
+        ]
+      },
+      "field-stroke": {
+        "role": "neutral",
+        "displayName": "Traço de Campo",
+        "canonical": "#7c8f87",
+        "tonalRamp": [
+          "oklch(15% 0.025 168.3)",
+          "oklch(26% 0.025 168.3)",
+          "oklch(37% 0.025 168.3)",
+          "oklch(48% 0.025 168.3)",
+          "oklch(60% 0.025 168.3)",
+          "oklch(72% 0.025 168.3)",
+          "oklch(84% 0.025 168.3)",
+          "oklch(95% 0.025 168.3)"
+        ]
+      },
+      "alert-red": {
+        "role": "status",
+        "displayName": "Vermelho Alerta",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "oklch(15% 0.182 29.5)",
+          "oklch(26% 0.182 29.5)",
+          "oklch(37% 0.182 29.5)",
+          "oklch(48% 0.182 29.5)",
+          "oklch(60% 0.182 29.5)",
+          "oklch(72% 0.182 29.5)",
+          "oklch(84% 0.182 29.5)",
+          "oklch(95% 0.03 29.5)"
+        ]
+      },
+      "alert-red-wash": {
+        "role": "status",
+        "displayName": "Vermelho Suave",
+        "canonical": "#fdecea",
+        "tonalRamp": [
+          "oklch(15% 0.019 25.6)",
+          "oklch(26% 0.019 25.6)",
+          "oklch(37% 0.019 25.6)",
+          "oklch(48% 0.019 25.6)",
+          "oklch(60% 0.019 25.6)",
+          "oklch(72% 0.019 25.6)",
+          "oklch(84% 0.019 25.6)",
+          "oklch(95% 0.019 25.6)"
+        ]
+      },
+      "status-laranja": {
+        "role": "status",
+        "displayName": "Laranja Status",
+        "canonical": "#9a4a05",
+        "tonalRamp": [
+          "oklch(15% 0.127 51.8)",
+          "oklch(26% 0.127 51.8)",
+          "oklch(37% 0.127 51.8)",
+          "oklch(48% 0.127 51.8)",
+          "oklch(60% 0.127 51.8)",
+          "oklch(72% 0.127 51.8)",
+          "oklch(84% 0.127 51.8)",
+          "oklch(95% 0.03 51.8)"
+        ]
+      },
+      "status-laranja-soft": {
+        "role": "status",
+        "displayName": "Laranja Suave",
+        "canonical": "#fff1e0",
+        "tonalRamp": [
+          "oklch(15% 0.027 72.8)",
+          "oklch(26% 0.027 72.8)",
+          "oklch(37% 0.027 72.8)",
+          "oklch(48% 0.027 72.8)",
+          "oklch(60% 0.027 72.8)",
+          "oklch(72% 0.027 72.8)",
+          "oklch(84% 0.027 72.8)",
+          "oklch(95% 0.027 72.8)"
+        ]
+      },
+      "status-amarelo": {
+        "role": "status",
+        "displayName": "Amarelo Status",
+        "canonical": "#6b4a00",
+        "tonalRamp": [
+          "oklch(15% 0.09 79.3)",
+          "oklch(26% 0.09 79.3)",
+          "oklch(37% 0.09 79.3)",
+          "oklch(48% 0.09 79.3)",
+          "oklch(60% 0.09 79.3)",
+          "oklch(72% 0.09 79.3)",
+          "oklch(84% 0.09 79.3)",
+          "oklch(95% 0.03 79.3)"
+        ]
+      },
+      "status-amarelo-soft": {
+        "role": "status",
+        "displayName": "Amarelo Suave",
+        "canonical": "#ffe9a8",
+        "tonalRamp": [
+          "oklch(15% 0.086 91.6)",
+          "oklch(26% 0.086 91.6)",
+          "oklch(37% 0.086 91.6)",
+          "oklch(48% 0.086 91.6)",
+          "oklch(60% 0.086 91.6)",
+          "oklch(72% 0.086 91.6)",
+          "oklch(84% 0.086 91.6)",
+          "oklch(95% 0.03 91.6)"
+        ]
+      },
+      "status-azul": {
+        "role": "status",
+        "displayName": "Azul Informativo",
+        "canonical": "#1d5fb0",
+        "tonalRamp": [
+          "oklch(15% 0.145 256.1)",
+          "oklch(26% 0.145 256.1)",
+          "oklch(37% 0.145 256.1)",
+          "oklch(48% 0.145 256.1)",
+          "oklch(60% 0.145 256.1)",
+          "oklch(72% 0.145 256.1)",
+          "oklch(84% 0.145 256.1)",
+          "oklch(95% 0.03 256.1)"
+        ]
+      },
+      "status-azul-soft": {
+        "role": "status",
+        "displayName": "Azul Suave",
+        "canonical": "#e6effa",
+        "tonalRamp": [
+          "oklch(15% 0.018 253.3)",
+          "oklch(26% 0.018 253.3)",
+          "oklch(37% 0.018 253.3)",
+          "oklch(48% 0.018 253.3)",
+          "oklch(60% 0.018 253.3)",
+          "oklch(72% 0.018 253.3)",
+          "oklch(84% 0.018 253.3)",
+          "oklch(95% 0.018 253.3)"
+        ]
+      },
+      "status-verde": {
+        "role": "status",
+        "displayName": "Verde Pronto",
+        "canonical": "#07603f",
+        "tonalRamp": [
+          "oklch(15% 0.094 160.8)",
+          "oklch(26% 0.094 160.8)",
+          "oklch(37% 0.094 160.8)",
+          "oklch(48% 0.094 160.8)",
+          "oklch(60% 0.094 160.8)",
+          "oklch(72% 0.094 160.8)",
+          "oklch(84% 0.094 160.8)",
+          "oklch(95% 0.03 160.8)"
+        ]
+      },
+      "status-verde-soft": {
+        "role": "status",
+        "displayName": "Verde Suave",
+        "canonical": "#dcf1e6",
+        "tonalRamp": [
+          "oklch(15% 0.027 163.2)",
+          "oklch(26% 0.027 163.2)",
+          "oklch(37% 0.027 163.2)",
+          "oklch(48% 0.027 163.2)",
+          "oklch(60% 0.027 163.2)",
+          "oklch(72% 0.027 163.2)",
+          "oklch(84% 0.027 163.2)",
+          "oklch(95% 0.027 163.2)"
+        ]
+      },
+      "ponto-laranja": {
+        "role": "status-fill",
+        "displayName": "Ponto Laranja",
+        "canonical": "#d9620b"
+      },
+      "ponto-amarelo": {
+        "role": "status-fill",
+        "displayName": "Ponto Amarelo",
+        "canonical": "#b98300"
+      },
+      "ponto-cinza": {
+        "role": "status-fill",
+        "displayName": "Ponto Cinza",
+        "canonical": "#6b7c75"
+      },
+      "ponto-vermelho": {
+        "role": "status-fill",
+        "displayName": "Ponto Vermelho",
+        "canonical": "#c42b1c"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de cada tela (h1)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Títulos de seção e de cartão."
+      },
+      "title-small": {
+        "displayName": "Title Small",
+        "purpose": "Nome de item em listas de atalho."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto corrido, 18 px na raiz de 112,5%."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Selos de status e legendas; o menor tamanho do sistema."
+      },
+      "price-display": {
+        "displayName": "Price Display",
+        "purpose": "Valor do orçamento a aprovar, números tabulares."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-card",
+        "value": "0 1px 2px rgb(15 31 25 / 0.06), 0 6px 16px -4px rgb(15 31 25 / 0.1)",
+        "purpose": "Todo cartão, lista agrupada e o botão primário."
+      },
+      {
+        "name": "shadow-float",
+        "value": "0 8px 28px -6px rgb(15 31 25 / 0.22)",
+        "purpose": "Diálogos, avisos, cartão de acesso, link de pular conteúdo."
+      },
+      {
+        "name": "bottom-nav",
+        "value": "0 -4px 16px -6px rgb(15 31 25 / 0.12)",
+        "purpose": "Somente a navegação fixa do celular."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "150ms",
+        "purpose": "Cor, sombra e deslocamento de 1 px em botões; cor em itens de navegação."
+      },
+      {
+        "name": "dialog",
+        "value": "200ms fade + zoom 95%",
+        "purpose": "Abrir e fechar diálogos."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Com prefers-reduced-motion, animações e transições são zeradas."
+      }
+    ],
+    "focus": {
+      "value": "outline: 3px solid var(--ring); outline-offset: 2px",
+      "purpose": "Foco de teclado global; campos trocam por contorno verde + halo de 4 px a 25%."
+    },
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "40rem"
+      },
+      {
+        "name": "md",
+        "value": "48rem"
+      },
+      {
+        "name": "lg",
+        "value": "64rem"
+      }
+    ],
+    "rootFontSize": "112.5% (18 px); todo rem escala com ela"
+  },
+  "components": [
+    {
+      "name": "Botão primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "A ação da tela; tamanho grande (56 px) e largura total no celular para a ação principal.",
+      "html": "<button class=\"ds-btn-primary\"><svg aria-hidden=\"true\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>Enviar receita</button>",
+      "css": ".ds-btn-primary { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 3.5rem; padding: 0.5rem 1.75rem; font-size: 1.125rem; font-weight: 700; color: #fff; background: var(--primary, #0b7250); border: 0; border-radius: var(--radius, 0.75rem); box-shadow: var(--shadow-card, 0 1px 2px rgb(15 31 25 / 0.06), 0 6px 16px -4px rgb(15 31 25 / 0.1)); cursor: pointer; transition: background-color 150ms, transform 150ms; } .ds-btn-primary svg { width: 1.5rem; height: 1.5rem; } .ds-btn-primary:hover { background: var(--primary-hover, #095c41); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 3px solid var(--ring, #0b7250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Botão contornado",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária: Renovar, Ver e responder.",
+      "html": "<button class=\"ds-btn-outline\">Ver e responder</button>",
+      "css": ".ds-btn-outline { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 3rem; padding: 0.5rem 1.25rem; font-size: 1rem; font-weight: 700; color: var(--accent-foreground, #07513a); background: var(--card, #fff); border: 2px solid rgb(11 114 80 / 0.3); border-radius: var(--radius, 0.75rem); cursor: pointer; transition: background-color 150ms, border-color 150ms, transform 150ms; } .ds-btn-outline:hover { border-color: var(--primary, #0b7250); background: var(--primary-soft, #e3f2eb); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:focus-visible { outline: 3px solid var(--ring, #0b7250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Botão fantasma",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ações de navegação discretas como Sair.",
+      "html": "<button class=\"ds-btn-ghost\">Sair</button>",
+      "css": ".ds-btn-ghost { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: inline-flex; align-items: center; gap: 0.5rem; min-height: 3rem; padding: 0.5rem 0.75rem; font-size: 1rem; font-weight: 700; color: var(--muted-foreground, #4b5c55); background: transparent; border: 0; border-radius: var(--radius, 0.75rem); cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-btn-ghost:hover { background: var(--muted, #e9efec); color: var(--foreground, #0f1f19); } .ds-btn-ghost:focus-visible { outline: 3px solid var(--ring, #0b7250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de 52 px com contorno de 2 px e halo verde no foco.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Seu e-mail</span><input class=\"ds-input\" type=\"email\" placeholder=\"nome@exemplo.com\"></label>",
+      "css": ".ds-field { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: grid; gap: 0.5rem; color: var(--foreground, #0f1f19); } .ds-field-label { font-weight: 700; font-size: 1rem; } .ds-input { font: inherit; height: 3.25rem; padding: 0.5rem 1rem; font-size: 1rem; color: var(--foreground, #0f1f19); background: var(--card, #fff); border: 2px solid var(--input, #7c8f87); border-radius: var(--radius, 0.75rem); outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground, #4b5c55); } .ds-input:focus-visible { border-color: var(--ring, #0b7250); box-shadow: 0 0 0 4px rgb(11 114 80 / 0.25); }"
+    },
+    {
+      "name": "Selo de status",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "Status sempre com fundo suave, ícone e texto; um par de cor por status.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-azul\"><svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2\"/><path d=\"M8.5 2h7\"/><path d=\"M7 16h10\"/></svg>Em manipulação</span><span class=\"ds-badge ds-badge-amarelo\"><svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M22 8c0-2.3-.8-4.3-2-6\"/><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/><path d=\"M4 2C2.8 3.7 2 5.7 2 8\"/></svg>Orçamento pronto: responda</span></div>",
+      "css": ".ds-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; } .ds-badge { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; white-space: nowrap; } .ds-badge svg { width: 1rem; height: 1rem; flex-shrink: 0; } .ds-badge-azul { background: var(--status-azul-soft, #e6effa); color: var(--status-azul, #1d5fb0); } .ds-badge-amarelo { background: var(--status-amarelo-soft, #ffe9a8); color: var(--status-amarelo, #6b4a00); }"
+    },
+    {
+      "name": "Cartão",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Superfície branca sem borda, raio de 1rem, sombra de cartão.",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">Acompanhe seu pedido</h2><p class=\"ds-card-meta\">#A3F19C20 · Dona Lia</p><a class=\"ds-card-link\" href=\"#\">Ver detalhes do pedido</a></section>",
+      "css": ".ds-card { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); background: var(--card, #fff); color: var(--foreground, #0f1f19); border-radius: 1rem; padding: 1.25rem; box-shadow: var(--shadow-card, 0 1px 2px rgb(15 31 25 / 0.06), 0 6px 16px -4px rgb(15 31 25 / 0.1)); } .ds-card-title { margin: 0; font-size: 1.25rem; font-weight: 700; line-height: 1.4; letter-spacing: -0.01em; } .ds-card-meta { margin: 0.25rem 0 0; color: var(--muted-foreground, #4b5c55); font-variant-numeric: tabular-nums; } .ds-card-link { display: inline-flex; align-items: center; min-height: 3rem; margin-top: 0.5rem; font-weight: 700; color: var(--primary, #0b7250); text-decoration: none; } .ds-card-link:hover { color: var(--primary-hover, #095c41); text-decoration: underline; text-underline-offset: 3px; } .ds-card-link:focus-visible { outline: 3px solid var(--ring, #0b7250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Linha do tempo do pedido",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Assinatura: quatro etapas numeradas, feitas em verde com visto, atual com halo.",
+      "html": "<ol class=\"ds-tl\"><li class=\"ds-tl-done\"><span class=\"ds-tl-dot\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><span class=\"ds-tl-lbl\">Solicitado</span></li><li class=\"ds-tl-now\"><span class=\"ds-tl-dot\">2</span><span class=\"ds-tl-lbl\">Em manipulação</span></li><li><span class=\"ds-tl-dot\">3</span><span class=\"ds-tl-lbl\">Pronto para retirada</span></li><li><span class=\"ds-tl-dot\">4</span><span class=\"ds-tl-lbl\">Entregue</span></li></ol>",
+      "css": ".ds-tl { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); max-width: 28rem; } .ds-tl li { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; } .ds-tl li + li::before { content: ''; position: absolute; top: 1.05rem; right: 50%; width: 100%; height: 4px; border-radius: 9999px; background: var(--border, #d3ddd9); } .ds-tl li.ds-tl-done + li::before, .ds-tl li.ds-tl-now::before { background: var(--primary, #0b7250); } .ds-tl-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 9999px; border: 2px solid var(--border, #d3ddd9); background: var(--card, #fff); color: var(--muted-foreground, #4b5c55); font-weight: 700; font-size: 1rem; transition: background-color 150ms; } .ds-tl-done .ds-tl-dot { background: var(--primary, #0b7250); border-color: var(--primary, #0b7250); color: #fff; } .ds-tl-now .ds-tl-dot { border-color: var(--primary, #0b7250); color: var(--primary, #0b7250); box-shadow: 0 0 0 4px rgb(11 114 80 / 0.15); } .ds-tl-lbl { margin-top: 0.5rem; padding: 0 0.25rem; font-size: 0.875rem; line-height: 1.25; color: var(--muted-foreground, #4b5c55); } .ds-tl-done .ds-tl-lbl { color: var(--foreground, #0f1f19); } .ds-tl-now .ds-tl-lbl { font-weight: 700; color: var(--accent-foreground, #07513a); }"
+    },
+    {
+      "name": "Navegação inferior (celular)",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Barra fixa com ícone sobre rótulo; o ativo ganha a pílula menta atrás do ícone.",
+      "html": "<nav class=\"ds-bnav\" aria-label=\"Principal\"><a class=\"ds-bnav-item\" aria-current=\"page\" href=\"#\"><span class=\"ds-bnav-ico\"><svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg></span>Início</a><a class=\"ds-bnav-item\" href=\"#\"><span class=\"ds-bnav-ico\"><svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/></svg></span>Meus pedidos</a></nav>",
+      "css": ".ds-bnav { font-family: var(--font-sans, 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif); display: grid; grid-template-columns: repeat(2, 1fr); max-width: 20rem; background: var(--card, #fff); border-top: 1px solid var(--border, #d3ddd9); box-shadow: 0 -4px 16px -6px rgb(15 31 25 / 0.12); } .ds-bnav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; min-height: 4.25rem; padding: 0 0.25rem; font-size: 0.85rem; font-weight: 700; line-height: 1.25; color: var(--muted-foreground, #4b5c55); text-decoration: none; transition: color 150ms; } .ds-bnav-ico { display: grid; place-items: center; width: 3.5rem; height: 2rem; border-radius: 9999px; transition: background-color 150ms; } .ds-bnav-item[aria-current='page'] { color: var(--accent-foreground, #07513a); } .ds-bnav-item[aria-current='page'] .ds-bnav-ico { background: var(--primary-soft, #e3f2eb); } .ds-bnav-item:hover { color: var(--foreground, #0f1f19); } .ds-bnav-item:focus-visible { outline: 3px solid var(--ring, #0b7250); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Balcão Bem Iluminado",
+    "overview": "**Creative North Star: \"O Balcão Bem Iluminado\"**\n\nO padrão da categoria de apps de saúde e farmácia, no nível de acabamento de Drogasil e Droga Raia, executado sem concessão para quem enxerga pouco e tem pouca prática com celular. Não há invenção de linguagem: fundo neutro frio, superfícies brancas, um verde-farmácia profundo que só aparece onde há ação, e um vocabulário fixo de status que o cliente aprende uma vez e reconhece em todas as telas. A personalidade vem do capricho e da legibilidade, não de ornamento.\n\nA densidade é baixa e generosa. A raiz da página é 18 px (`html { font-size: 112.5% }`), então todo `rem` da interface (texto, espaçamento, raio, alvos de toque) cresce junto. Cada tela tem um objetivo; o botão verde principal ocupa a largura no celular e fica ao alcance do polegar. O painel da farmácia usa o mesmo sistema com uma barra lateral e tabelas, mais denso só onde a equipe precisa comparar linhas.\n\nRejeições confirmadas pela direção: o painel de SaaS genérico com cards iguais, emoji como ícone e texto cinza-claro miúdo.",
+    "keyCharacteristics": [
+      "Uma única face tipográfica, Atkinson Hyperlegible Next, com hierarquia feita por tamanho e negrito (700).",
+      "Verde-farmácia como única cor de ação; azul só para informação.",
+      "Status sempre em cor + ícone Lucide + texto, nunca só cor.",
+      "Cartões brancos sem borda, levantados por sombra suave; bordas de 1 px só em estrutura (topo, divisores, tabelas).",
+      "Alvos de toque de no mínimo 48 px; ação principal com 56 px.",
+      "Foco de teclado grosso (contorno de 3 px verde, deslocado 2 px)."
+    ],
+    "rules": [
+      {
+        "name": "A Regra da Voz Única",
+        "body": "Verde-farmácia é a única cor de ação. Se algo verde não é tocável, deve ser status \"pronto\" ou progresso concluído, nunca decoração.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Status Triplo",
+        "body": "Status nunca é só cor: sempre fundo suave + ícone Lucide + rótulo escrito, com a mesma cor, ícone e nome em toda tela.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra do Azul Informativo",
+        "body": "Azul não é ação. Ele marca \"em manipulação\" e etiquetas de informação; link e botão são sempre verdes.",
+        "section": "colors"
+      },
+      {
+        "name": "A Regra dos Dois Pesos",
+        "body": "Só 400 e 700. Hierarquia vem de tamanho e negrito, nunca de pesos intermediários ou de cinza claro.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra do Piso de 15 px",
+        "body": "Nada abaixo de 0.875rem (≈ 15,75 px). `text-xs` não existe nas telas.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra do Número Parado",
+        "body": "Preço, número de pedido e contagem usam números tabulares, para não \"dançarem\" entre linhas.",
+        "section": "typography"
+      },
+      {
+        "name": "A Regra Sombra-no-Lugar-de-Borda",
+        "body": "Cartões não têm borda; a sombra de cartão faz a separação. Bordas de 1 px ficam para estrutura: topo, barra lateral, divisores de lista, linhas de tabela.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** usar verde-farmácia para toda ação e nada mais (A Regra da Voz Única).",
+      "**Do** mostrar status sempre com fundo suave, ícone Lucide e texto, puxando de `lib/status.ts` (A Regra do Status Triplo).",
+      "**Do** manter todo alvo de toque com no mínimo 3rem (48 px) e a ação principal da tela com 3.5rem (56 px), largura total no celular.",
+      "**Do** separar cartões por sombra de cartão, sem borda, com raio de 1rem.",
+      "**Do** acompanhar todo ícone de um rótulo escrito; ícones decorativos com `aria-hidden`.",
+      "**Do** usar números tabulares em preços, números de pedido e contagens.",
+      "**Do** manter o foco de teclado com contorno verde de 3 px deslocado 2 px."
+    ],
+    "donts": [
+      "**Don't** usar emoji como ícone; os ícones são Lucide, traço 2.",
+      "**Don't** usar texto menor que 0.875rem nem cinza mais claro que ardósia sálvia para texto.",
+      "**Don't** usar azul, laranja ou amarelo como cor de botão ou link.",
+      "**Don't** comunicar status só com cor.",
+      "**Don't** usar pesos intermediários (500, 600); só 400 e 700.",
+      "**Don't** usar sombra com preto puro ou sombra dura deslocada sem desfoque.",
+      "**Don't** encher telas do cliente com cartões iguais de enfeite; cada tela tem um objetivo, um cartão em destaque e a ação principal. (Os contadores de status do painel são filtros tocáveis, cada um com cor e ícone do seu status, e não contam como enfeite.)"
+    ]
+  }
+}
