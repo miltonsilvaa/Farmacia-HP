@@ -48,6 +48,7 @@ model Orcamento {
   status            String           @default("PENDENTE")
   observacoes       String?
   respostaAdmin     String?
+  posologia         String?          // modo de uso exibido ao cliente (farmacêutico ou ERP)
   preco             Decimal?         @db.Decimal(10, 2)
   criadoEm         DateTime         @default(now())
 

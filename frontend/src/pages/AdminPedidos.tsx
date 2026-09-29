@@ -17,6 +17,7 @@ interface OrcamentoAdmin {
   arquivoReceitaUrl: string;
   observacoes: string | null;
   respostaAdmin: string | null;
+  posologia: string | null;
   preco: string | null;
   usuario: { email: string };
   itens: OrcamentoItem[];
@@ -107,6 +108,36 @@ export default function AdminPedidos() {
     } finally {
       setIsMudando(false);
       setMudanca(null);
+    }
+  };
+
+  const [editandoPosologia, setEditandoPosologia] = useState<OrcamentoAdmin | null>(null);
+  const [posologiaTexto, setPosologiaTexto] = useState('');
+  const [isSalvandoPosologia, setIsSalvandoPosologia] = useState(false);
+
+  const abrirPosologia = (o: OrcamentoAdmin) => {
+    setEditandoPosologia(o);
+    setPosologiaTexto(o.posologia ?? '');
+  };
+
+  const handleSalvarPosologia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editandoPosologia) return;
+    setIsSalvandoPosologia(true);
+    try {
+      const res = await apiFetch(`/orcamentos/admin/${editandoPosologia.id}/posologia`, {
+        method: 'PATCH',
+        body: JSON.stringify({ posologia: posologiaTexto }),
+      });
+      if (!res.ok) throw new Error();
+      const { posologia } = await res.json();
+      atualizarPedido(editandoPosologia.id, { posologia });
+      toast.success('Modo de uso salvo. O cliente já vê no histórico do pedido.');
+      setEditandoPosologia(null);
+    } catch {
+      toast.error('Não foi possível salvar o modo de uso.');
+    } finally {
+      setIsSalvandoPosologia(false);
     }
   };
 
@@ -319,6 +350,14 @@ export default function AdminPedidos() {
                                     : 'Enviar ao ERP'}
                               </button>
                             )}
+                            {!['RECUSADO', 'CANCELADO'].includes(o.status) && (
+                              <button
+                                onClick={() => abrirPosologia(o)}
+                                className="px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 font-semibold rounded-lg transition-colors whitespace-nowrap"
+                              >
+                                {o.posologia ? 'Editar modo de uso' : 'Adicionar modo de uso'}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -345,6 +384,55 @@ export default function AdminPedidos() {
             </div>
           )}
       </div>
+
+      {editandoPosologia && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <form
+            onSubmit={handleSalvarPosologia}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="posologia-titulo"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-4"
+          >
+            <h2 id="posologia-titulo" className="text-lg font-bold text-gray-800">
+              Modo de uso — Pedido #{editandoPosologia.id.substring(0, 8).toUpperCase()}
+            </h2>
+            <div>
+              <label htmlFor="posologia-texto" className="block text-sm font-semibold text-gray-700 mb-1">
+                Posologia exibida ao cliente
+              </label>
+              <textarea
+                id="posologia-texto"
+                rows={4}
+                autoFocus
+                value={posologiaTexto}
+                onChange={(e) => setPosologiaTexto(e.target.value)}
+                disabled={isSalvandoPosologia}
+                placeholder="Ex: Tomar 10 gotas, 2 vezes ao dia, longe das refeições."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none disabled:bg-gray-100"
+              />
+              <p className="text-xs text-gray-500 mt-1">Deixe em branco para remover.</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setEditandoPosologia(null)}
+                disabled={isSalvandoPosologia}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSalvandoPosologia}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isSalvandoPosologia ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <ConfirmDialog
         aberto={mudanca !== null}

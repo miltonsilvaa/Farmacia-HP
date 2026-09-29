@@ -74,3 +74,14 @@
    - O botão do e-mail abre Meus Pedidos com um aviso "Renovar agora" (nada é renovado só por clicar no link)
    - Admin pode rodar na hora: `POST /orcamentos/admin/lembretes/executar`
 3. Suporte via WhatsApp com contexto: link discreto em cada pedido abre `wa.me` com "Olá, preciso de ajuda com o Pedido #XXXX". Número em `WHATSAPP_FARMACIA` (vazio esconde o botão)
+
+# Posologia no histórico — "Como tomar" (28/09/2026)
+
+> **Banco:** novo campo `posologia` em `orcamentos` (`npx prisma db push`).
+
+- Cliente: quadro "Como tomar" em destaque (letra grande) em cada pedido de Meus Pedidos
+- Farmacêutico: campo "Modo de Uso / Posologia" ao avaliar a receita (renovações já vêm preenchidas com a do pedido anterior) e botão "Adicionar/Editar modo de uso" em Pedidos, a qualquer momento
+- Renovação em 1 clique copia a posologia
+- ERP: a posologia vai no JSON/XML de saída e o ERP pode enviá-la de volta:
+  `PUT /erp/pedidos/:id/posologia` com `Authorization: Bearer <ERP_TOKEN>` e corpo `{ "posologia": "..." }`
+  (sem `ERP_TOKEN` configurado essa rota fica desligada)

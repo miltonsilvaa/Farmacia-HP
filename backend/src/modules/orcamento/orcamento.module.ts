@@ -16,13 +16,14 @@ import { EmailNotificacaoAdapter } from './adapters/out/notificacao/email-notifi
 import { FamiliarModule } from '../familiar/familiar.module';
 import { ErpService } from './erp.service';
 import { LembreteRecompraService } from './lembrete-recompra.service';
+import { ErpEntradaController } from './adapters/in/erp/erp-entrada.controller';
 import { ERP_PORT } from './core/ports/out/erp.port';
 import { HttpErpAdapter } from './adapters/out/erp/http-erp.adapter';
 import { ArquivoErpAdapter } from './adapters/out/erp/arquivo-erp.adapter';
 
 @Module({
   imports: [AuthModule, FamiliarModule],
-  controllers: [OrcamentoController],
+  controllers: [OrcamentoController, ErpEntradaController],
   providers: [
     OrcamentoService,
     ErpService,

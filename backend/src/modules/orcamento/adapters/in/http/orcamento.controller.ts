@@ -54,14 +54,22 @@ export class OrcamentoController {
   @Roles('ADMIN')
   async avaliarOrcamento(
     @Param('id') id: string,
-    @Body() body: { status: string; preco?: number; respostaAdmin?: string },
+    @Body() body: { status: string; preco?: number; respostaAdmin?: string; posologia?: string },
   ) {
     return this.orcamentoService.avaliarOrcamento(
       id,
       body.status,
       body.preco,
       body.respostaAdmin,
+      body.posologia,
     );
+  }
+
+  @Patch('admin/:id/posologia')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async definirPosologia(@Param('id') id: string, @Body() body: { posologia: string | null }) {
+    return this.orcamentoService.definirPosologia(id, body.posologia);
   }
 
   // Roda na hora o job diário de lembrete de recompra (útil para teste/demonstração)

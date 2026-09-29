@@ -97,6 +97,7 @@ export class OrcamentoService {
     status: string,
     preco?: number,
     respostaAdmin?: string,
+    posologia?: string,
   ) {
     const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
     if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
@@ -115,6 +116,7 @@ export class OrcamentoService {
         status,
         ...(preco !== undefined && { preco }),
         ...(respostaAdmin !== undefined && { respostaAdmin }),
+        ...(posologia !== undefined && { posologia: posologia.trim() || null }),
       },
     });
     await this.notificar(atualizado.clienteId, id, status, atualizado.preco, respostaAdmin);
@@ -181,6 +183,7 @@ export class OrcamentoService {
         clienteId: usuarioId,
         familiarId: pedidoOriginal.familiarId ?? null,
         arquivoReceitaUrl: pedidoOriginal.arquivoReceitaUrl,
+        posologia: pedidoOriginal.posologia,
         status: 'PENDENTE',
         observacoes: pedidoOriginal.observacoes
           ? `[Renovação] ${pedidoOriginal.observacoes.replace(/^\[Renovação\]\s*/, '')}`
@@ -207,5 +210,17 @@ export class OrcamentoService {
 
     await this.notificar(usuarioId, novoPedido.id, 'PENDENTE');
     return { sucesso: true, novoId: novoPedido.id, itensIndisponiveis };
+  }
+
+  // Modo de uso pode ser ajustado a qualquer momento (pelo admin ou pelo ERP),
+  // sem mudar o status nem disparar e-mail
+  async definirPosologia(id: string, posologia: string | null) {
+    const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
+    if (!orcamento) throw new NotFoundException('Pedido não encontrado.');
+    return this.prisma.orcamento.update({
+      where: { id },
+      data: { posologia: posologia?.trim() || null },
+      select: { id: true, posologia: true },
+    });
   }
 }

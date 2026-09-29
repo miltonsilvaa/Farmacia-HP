@@ -41,6 +41,7 @@ export class ErpService {
         status: o.status,
         observacoes: o.observacoes,
         respostaFarmacia: o.respostaAdmin,
+        posologia: o.posologia,
         valorTotal: o.preco?.toFixed(2) ?? null,
       },
       cliente: { id: o.usuario.id, email: o.usuario.email },

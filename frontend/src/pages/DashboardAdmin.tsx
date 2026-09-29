@@ -17,6 +17,7 @@ interface OrcamentoAdmin {
   arquivoReceitaUrl: string;
   observacoes: string | null;
   respostaAdmin: string | null;
+  posologia: string | null;
   preco: string | null;
   usuario: { email: string };
   itens: OrcamentoItem[];
@@ -29,6 +30,7 @@ export default function DashboardAdmin() {
   const [selecionado, setSelecionado] = useState<OrcamentoAdmin | null>(null);
   const [precoInput, setPrecoInput] = useState('');
   const [respostaInput, setRespostaInput] = useState('');
+  const [posologiaInput, setPosologiaInput] = useState('');
   const [isAvaliando, setIsAvaliando] = useState(false);
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function DashboardAdmin() {
       };
       if (status === 'AGUARDANDO_PAGAMENTO') {
         body.preco = parseFloat(precoInput.replace(',', '.'));
+        body.posologia = posologiaInput;
       }
 
       const res = await apiFetch(`/orcamentos/admin/${selecionado.id}`, {
@@ -87,6 +90,7 @@ export default function DashboardAdmin() {
       setSelecionado(null);
       setPrecoInput('');
       setRespostaInput('');
+      setPosologiaInput('');
     } catch {
       toast.error('Erro ao avaliar orçamento.');
     } finally {
@@ -183,6 +187,8 @@ export default function DashboardAdmin() {
                     setSelecionado(o);
                     setPrecoInput('');
                     setRespostaInput('');
+                    // Renovações já chegam com o modo de uso do pedido anterior
+                    setPosologiaInput(o.posologia ?? '');
                   }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors"
                 >
@@ -281,6 +287,23 @@ export default function DashboardAdmin() {
                   placeholder="Ex: Prazo de preparo: 3 dias úteis."
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
                 />
+              </div>
+
+              {/* Posologia */}
+              <div>
+                <label htmlFor="dashboardadmin-posologia" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Modo de Uso / Posologia (Opcional)
+                </label>
+                <textarea id="dashboardadmin-posologia"
+                  rows={2}
+                  value={posologiaInput}
+                  onChange={(e) => setPosologiaInput(e.target.value)}
+                  placeholder="Ex: Tomar 10 gotas, 2 vezes ao dia, longe das refeições."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Aparece para o cliente no histórico do pedido. Pode ser ajustado depois em Pedidos.
+                </p>
               </div>
             </div>
 

@@ -9,6 +9,7 @@ export interface PedidoErp {
     status: string;
     observacoes: string | null;
     respostaFarmacia: string | null;
+    posologia: string | null;
     valorTotal: string | null;
   };
   cliente: { id: string; email: string };

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { apiFetch } from '../lib/api';
 import LinhaDoTempoPedido from '../components/LinhaDoTempoPedido';
 import SuporteWhatsApp from '../components/SuporteWhatsApp';
+import ComoTomar from '../components/ComoTomar';
 
 interface PedidoItem {
   id: string;
@@ -20,6 +21,7 @@ interface Pedido {
   preco: string | null;
   respostaAdmin: string | null;
   observacoes: string | null;
+  posologia: string | null;
   itens: PedidoItem[];
   anexos: { id: string; arquivoUrl: string; nomeArquivo: string }[];
   familiar: { nome: string; parentesco: string; tipo: 'PESSOA' | 'PET'; especie: string | null } | null;
@@ -345,6 +347,12 @@ export default function MeusPedidos() {
                 <div className="ml-0 md:ml-14">
                   <LinhaDoTempoPedido status={pedido.status} />
                 </div>
+
+                {pedido.posologia && (
+                  <div className="ml-0 md:ml-14">
+                    <ComoTomar posologia={pedido.posologia} />
+                  </div>
+                )}
 
                 {/* Painel condicional por status */}
                 <PainelAcao
