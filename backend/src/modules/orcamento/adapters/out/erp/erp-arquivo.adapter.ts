@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { mkdir, rename, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { ErpPort, PedidoErp } from '../../../core/ports/out/erp.port';
+import {
+  ErpIntegrationPort,
+  PedidoErp,
+} from '../../../core/ports/out/erp-integration.port';
 import {
   formatoConfigurado,
   serializarPedido,
@@ -11,8 +14,8 @@ import {
 // importa (troca por arquivo). Escreve em .tmp e renomeia, para o ERP nunca ler
 // um arquivo pela metade.
 @Injectable()
-export class ArquivoErpAdapter implements ErpPort {
-  private readonly logger = new Logger(ArquivoErpAdapter.name);
+export class ErpArquivoAdapter implements ErpIntegrationPort {
+  private readonly logger = new Logger(ErpArquivoAdapter.name);
   private readonly pasta =
     process.env.ERP_PASTA_SAIDA || join(process.cwd(), 'erp-saida');
 

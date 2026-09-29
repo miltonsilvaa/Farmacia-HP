@@ -294,6 +294,68 @@ describe('OrcamentoService', () => {
       expect(r.itensIndisponiveis).toBe(1);
     });
 
+    it.each(['PRODUCAO', 'FINALIZADO', 'ENTREGUE'])(
+      'renova pedido %s (aprovado pelo cliente)',
+      async (status) => {
+        const { service, prisma } = criarServico();
+        prisma.orcamento.findFirst.mockResolvedValue({ ...original, status });
+        await expect(service.renovarPedido('p1', 'u1')).resolves.toMatchObject({
+          sucesso: true,
+          novoId: 'novo',
+        });
+      },
+    );
+
+    it('membro da família renova pedido de dependente compartilhado, em nome próprio', async () => {
+      const { service, prisma } = criarServico(['titular-A']);
+      prisma.orcamento.findFirst.mockResolvedValue({
+        ...original,
+        clienteId: 'titular-A',
+      });
+
+      await service.renovarPedido('p1', 'membro');
+
+      expect(prisma.orcamento.findFirst.mock.calls[0][0].where).toEqual({
+        id: 'p1',
+        OR: [
+          { clienteId: 'membro' },
+          { familiar: { usuarioId: { in: ['membro', 'titular-A'] } } },
+        ],
+      });
+      // O novo pedido é de quem clicou; o paciente continua o mesmo
+      expect(prisma.orcamento.create.mock.calls[0][0].data).toMatchObject({
+        clienteId: 'membro',
+        familiarId: 'f1',
+      });
+    });
+
+    it('quem não tem acesso ao pedido não renova (404, nada é criado)', async () => {
+      const { service, prisma } = criarServico();
+      prisma.orcamento.findFirst.mockResolvedValue(null);
+      await expect(service.renovarPedido('p1', 'estranho')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.orcamento.create).not.toHaveBeenCalled();
+    });
+
+    it('pedido sem produtos nem anexos renova só com a receita', async () => {
+      const { service, prisma } = criarServico();
+      prisma.orcamento.findFirst.mockResolvedValue({
+        ...original,
+        observacoes: null,
+        itens: [],
+        anexos: [],
+      });
+
+      const r = await service.renovarPedido('p1', 'u1');
+
+      const data = prisma.orcamento.create.mock.calls[0][0].data;
+      expect(data.itens.create).toEqual([]);
+      expect(data.anexos.create).toEqual([]);
+      expect(data.observacoes).toBe('[Renovação automática]');
+      expect(r.itensIndisponiveis).toBe(0);
+    });
+
     it.each(['PENDENTE', 'AGUARDANDO_PAGAMENTO', 'RECUSADO', 'CANCELADO'])(
       'não renova pedido %s',
       async (status) => {
@@ -378,6 +440,45 @@ describe('OrcamentoService', () => {
         }),
       ).rejects.toThrow(ForbiddenException);
       expect(storage.uploadArquivo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('definirPosologia (admin ou ERP)', () => {
+    it('grava o texto sem espaços nas pontas e sem mudar o status', async () => {
+      const { service, prisma, notificacao } = criarServico();
+      prisma.orcamento.findUnique.mockResolvedValue({
+        id: 'p1',
+        status: 'PRODUCAO',
+      });
+
+      await service.definirPosologia('p1', '  10 gotas 2x ao dia ');
+
+      expect(prisma.orcamento.update).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+        data: { posologia: '10 gotas 2x ao dia' },
+        select: { id: true, posologia: true },
+      });
+      expect(notificacao.notificarStatus).not.toHaveBeenCalled();
+    });
+
+    it.each(['', '   ', null])(
+      'texto vazio (%p) remove a posologia',
+      async (texto) => {
+        const { service, prisma } = criarServico();
+        prisma.orcamento.findUnique.mockResolvedValue({ id: 'p1' });
+        await service.definirPosologia('p1', texto);
+        expect(prisma.orcamento.update.mock.calls[0][0].data).toEqual({
+          posologia: null,
+        });
+      },
+    );
+
+    it('pedido inexistente vira 404', async () => {
+      const { service, prisma } = criarServico();
+      prisma.orcamento.findUnique.mockResolvedValue(null);
+      await expect(service.definirPosologia('x', 'a')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

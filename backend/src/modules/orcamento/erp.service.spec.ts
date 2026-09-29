@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { ErpService } from './erp.service';
-import { MockErpAdapter } from './adapters/out/erp/mock-erp.adapter';
+import { ErpMockAdapter } from './adapters/out/erp/erp-mock.adapter';
 
 const pedidoBanco = {
   id: 'abcdef12-0000',
@@ -24,7 +24,7 @@ const pedidoBanco = {
   anexos: [{ arquivoUrl: 'hash-exame.pdf', nomeArquivo: 'exame.pdf' }],
 };
 
-function criar(erp = new MockErpAdapter()) {
+function criar(erp = new ErpMockAdapter()) {
   const prisma = {
     orcamento: {
       findUnique: jest.fn().mockResolvedValue(pedidoBanco),
@@ -90,5 +90,91 @@ describe('ErpService', () => {
     );
     expect(nomeArquivo).toBe('pedido-ABCDEF12.xml');
     expect(conteudo).toContain('<posologia>10 gotas 2x ao dia</posologia>');
+  });
+
+  describe('mapeamento do paciente', () => {
+    it.each([
+      [
+        'dependente',
+        {
+          tipo: 'PESSOA',
+          nome: 'Ana',
+          parentesco: 'Filho(a)',
+          especie: null,
+          dataNascimento: new Date('2015-03-09T00:00:00Z'),
+        },
+        {
+          tipo: 'DEPENDENTE',
+          nome: 'Ana',
+          parentesco: 'Filho(a)',
+          especie: null,
+          dataNascimento: '2015-03-09',
+        },
+      ],
+      [
+        'pet',
+        {
+          tipo: 'PET',
+          nome: 'Thor',
+          parentesco: 'Pet',
+          especie: 'Cão',
+          dataNascimento: null,
+        },
+        {
+          tipo: 'PET',
+          nome: 'Thor',
+          parentesco: 'Pet',
+          especie: 'Cão',
+          dataNascimento: null,
+        },
+      ],
+    ])('%s', async (_caso, familiar, esperado) => {
+      const { service, prisma, erp } = criar();
+      prisma.orcamento.findUnique.mockResolvedValue({
+        ...pedidoBanco,
+        familiar,
+      });
+
+      await service.sincronizar(pedidoBanco.id);
+
+      expect(erp.enviados[0].paciente).toEqual(esperado);
+    });
+  });
+
+  it('pedido sem preço, produtos nem anexos ainda gera um payload válido', async () => {
+    const { service, prisma, erp } = criar();
+    prisma.orcamento.findUnique.mockResolvedValue({
+      ...pedidoBanco,
+      preco: null,
+      itens: [],
+      anexos: [],
+    });
+
+    await service.sincronizar(pedidoBanco.id);
+
+    const enviado = erp.enviados[0];
+    expect(enviado.pedido.valorTotal).toBeNull();
+    expect(enviado.itens).toEqual([]);
+    expect(enviado.arquivos).toHaveLength(1); // só a receita
+  });
+
+  it('devolve só os campos de status do ERP que a tela do admin usa', async () => {
+    const { service, prisma } = criar();
+    await service.sincronizar(pedidoBanco.id);
+    expect(prisma.orcamento.update.mock.calls[0][0].select).toEqual({
+      id: true,
+      erpStatus: true,
+      erpEnviadoEm: true,
+      erpErro: true,
+    });
+  });
+
+  it('pedido inexistente vira 404 (não é registrado como falha do ERP)', async () => {
+    const { service, prisma } = criar();
+    prisma.orcamento.findUnique.mockResolvedValue(null);
+    await expect(service.sincronizar('nao-existe')).rejects.toThrow(
+      'Pedido não encontrado',
+    );
+    expect(prisma.orcamento.update).not.toHaveBeenCalled();
   });
 });

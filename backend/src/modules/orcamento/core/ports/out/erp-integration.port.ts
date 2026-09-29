@@ -35,8 +35,8 @@ export interface PedidoErp {
   }[];
 }
 
-export interface ErpPort {
+export interface ErpIntegrationPort {
   enviarPedido(pedido: PedidoErp): Promise<void>;
 }
 
-export const ERP_PORT = Symbol('ERP_PORT');
+export const ERP_INTEGRATION_PORT = Symbol('ERP_INTEGRATION_PORT');

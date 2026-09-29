@@ -1,4 +1,4 @@
-import { FormatoErp, PedidoErp } from '../ports/out/erp.port';
+import { FormatoErp, PedidoErp } from '../ports/out/erp-integration.port';
 
 // Nome do elemento de cada item de lista no XML
 const ITEM_DE_LISTA: Record<string, string> = {

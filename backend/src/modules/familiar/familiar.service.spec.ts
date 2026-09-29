@@ -8,6 +8,7 @@ import { FamiliarService } from './familiar.service';
 function criarPrisma() {
   return {
     familiar: {
+      findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(({ data }) => Promise.resolve({ id: 'f-novo', ...data })),
@@ -89,6 +90,87 @@ describe('FamiliarService', () => {
     });
   });
 
+  describe('listagem do Grupo Família', () => {
+    it('junta os próprios e os compartilhados, marcando a origem de cada um', async () => {
+      prisma.familiaAcesso.findMany.mockResolvedValue([
+        { titularId: 'titular-A' },
+      ]);
+      prisma.familiar.findMany.mockResolvedValue([
+        {
+          id: 'f1',
+          usuarioId: 'u1',
+          nome: 'Thor',
+          usuario: { email: 'eu@x.com' },
+        },
+        {
+          id: 'f2',
+          usuarioId: 'titular-A',
+          nome: 'Vó Lia',
+          usuario: { email: 'a@x.com' },
+        },
+      ]);
+
+      const lista = await service.listarPorUsuario('u1');
+
+      expect(prisma.familiar.findMany.mock.calls[0][0].where).toEqual({
+        usuarioId: { in: ['u1', 'titular-A'] },
+      });
+      expect(lista).toEqual([
+        expect.objectContaining({
+          id: 'f1',
+          proprio: true,
+          titularEmail: null,
+        }),
+        expect.objectContaining({
+          id: 'f2',
+          proprio: false,
+          titularEmail: 'a@x.com',
+        }),
+      ]);
+      // O objeto do usuário (com dados da conta) não vaza para a resposta
+      expect(lista[0]).not.toHaveProperty('usuario');
+    });
+
+    it('sem convites aceitos, só vê os próprios', async () => {
+      prisma.familiar.findMany.mockResolvedValue([]);
+      await service.listarPorUsuario('u1');
+      expect(prisma.familiar.findMany.mock.calls[0][0].where).toEqual({
+        usuarioId: { in: ['u1'] },
+      });
+    });
+
+    it('editar um pet para pessoa limpa a espécie', async () => {
+      prisma.familiar.findFirst.mockResolvedValue({
+        id: 'f1',
+        usuarioId: 'u1',
+      });
+      await service.atualizar('f1', 'u1', {
+        tipo: 'PESSOA',
+        parentesco: 'Filho(a)',
+        especie: 'Cão',
+      });
+      expect(prisma.familiar.update.mock.calls[0][0].data).toMatchObject({
+        tipo: 'PESSOA',
+        parentesco: 'Filho(a)',
+        especie: null,
+      });
+    });
+
+    it('membro com acesso compartilhado não edita nem remove dependente do titular', async () => {
+      // A edição só procura entre os dependentes do próprio usuário
+      prisma.familiar.findFirst.mockResolvedValue(null);
+      await expect(
+        service.atualizar('f2', 'membro', { nome: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+      await expect(service.remover('f2', 'membro')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.familiar.findFirst).toHaveBeenCalledWith({
+        where: { id: 'f2', usuarioId: 'membro' },
+      });
+    });
+  });
+
   describe('podeAcessarFamiliar', () => {
     beforeEach(() => {
       prisma.familiar.findUnique.mockResolvedValue({
@@ -114,6 +196,23 @@ describe('FamiliarService', () => {
         expect.objectContaining({
           where: { membroId: 'membro', status: 'ACEITO' },
         }),
+      );
+    });
+
+    it('convite ainda pendente não dá acesso', async () => {
+      // A consulta só considera convites ACEITO; um pendente não aparece nela
+      prisma.familiaAcesso.findMany.mockResolvedValue([]);
+      await expect(
+        service.podeAcessarFamiliar('convidado', 'f1'),
+      ).resolves.toBe(false);
+    });
+
+    it('acesso a outro titular não vale para este dependente', async () => {
+      prisma.familiaAcesso.findMany.mockResolvedValue([
+        { titularId: 'outro-titular' },
+      ]);
+      await expect(service.podeAcessarFamiliar('membro', 'f1')).resolves.toBe(
+        false,
       );
     });
 

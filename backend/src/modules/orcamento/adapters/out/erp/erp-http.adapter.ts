@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ErpPort, PedidoErp } from '../../../core/ports/out/erp.port';
+import {
+  ErpIntegrationPort,
+  PedidoErp,
+} from '../../../core/ports/out/erp-integration.port';
 import {
   CONTENT_TYPE,
   formatoConfigurado,
@@ -9,7 +12,7 @@ import {
 // Envia o pedido para a API do ERP (ERP_URL). Usa o id do pedido como chave de
 // idempotência, para o ERP ignorar reenvios do mesmo pedido.
 @Injectable()
-export class HttpErpAdapter implements ErpPort {
+export class ErpHttpAdapter implements ErpIntegrationPort {
   async enviarPedido(pedido: PedidoErp): Promise<void> {
     const formato = formatoConfigurado();
     const resposta = await fetch(process.env.ERP_URL, {

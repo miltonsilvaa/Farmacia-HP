@@ -1,13 +1,13 @@
 import { Type } from '@nestjs/common';
-import { ErpPort } from '../../../core/ports/out/erp.port';
-import { HttpErpAdapter } from './http-erp.adapter';
-import { ArquivoErpAdapter } from './arquivo-erp.adapter';
-import { MockErpAdapter } from './mock-erp.adapter';
+import { ErpIntegrationPort } from '../../../core/ports/out/erp-integration.port';
+import { ErpHttpAdapter } from './erp-http.adapter';
+import { ErpArquivoAdapter } from './erp-arquivo.adapter';
+import { ErpMockAdapter } from './erp-mock.adapter';
 
-const ADAPTERS: Record<string, Type<ErpPort>> = {
-  mock: MockErpAdapter,
-  arquivo: ArquivoErpAdapter,
-  http: HttpErpAdapter,
+const ADAPTERS: Record<string, Type<ErpIntegrationPort>> = {
+  mock: ErpMockAdapter,
+  arquivo: ErpArquivoAdapter,
+  http: ErpHttpAdapter,
 };
 
 // ERP_MODO escolhe o adapter (mock | arquivo | http). Sem ERP_MODO mantém o
@@ -15,7 +15,7 @@ const ADAPTERS: Record<string, Type<ErpPort>> = {
 // Compara o texto exato: ler a variável como booleano faria "false" virar verdadeiro.
 export function escolherErpAdapter(
   env: NodeJS.ProcessEnv = process.env,
-): Type<ErpPort> {
+): Type<ErpIntegrationPort> {
   const modo = env.ERP_MODO?.trim().toLowerCase();
   if (modo) {
     const adapter = ADAPTERS[modo];
@@ -24,10 +24,10 @@ export function escolherErpAdapter(
         `ERP_MODO inválido: "${env.ERP_MODO}". Use mock, arquivo ou http.`,
       );
     }
-    if (adapter === HttpErpAdapter && !env.ERP_URL) {
+    if (adapter === ErpHttpAdapter && !env.ERP_URL) {
       throw new Error('ERP_MODO=http exige ERP_URL.');
     }
     return adapter;
   }
-  return env.ERP_URL ? HttpErpAdapter : ArquivoErpAdapter;
+  return env.ERP_URL ? ErpHttpAdapter : ErpArquivoAdapter;
 }

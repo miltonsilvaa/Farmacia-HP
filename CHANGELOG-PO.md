@@ -116,3 +116,23 @@
    - MinIO fora do ar responde 503 com mensagem clara
    - Filtro global `PrismaExceptionFilter`: registro inexistente 404, duplicado 409, referência inválida/dado malformado 400, em todas as rotas sem repetir try/catch
 4. Testes: 95 (eram 62), incluindo os casos acima e o filtro
+
+# Etapa 2 — Qualidade de código, Fase 3 e checklist (28/09/2026)
+
+> Backup antes desta fase: tag `snapshot-qualidade-fase2-2026-09-28`. Sem mudança de banco nem de dependências.
+
+- Nomes alinhados ao checklist: `ErpIntegrationPort` (`erp-integration.port.ts`, token `ERP_INTEGRATION_PORT`), `ErpMockAdapter`, `ErpHttpAdapter`, `ErpArquivoAdapter`
+- Testes: 125 em 14 suítes (`npm test`), todos sem banco. Novos nesta fase:
+  - Renovação 1 clique: renova pedidos Em produção/Pronto/Entregue e bloqueia os demais; membro da família renova pedido de dependente compartilhado (em nome próprio); quem não tem acesso recebe 404 e nada é criado; pedido sem produtos/anexos
+  - Grupo Família: listagem junta próprios e compartilhados sem vazar dados da conta; convite pendente não dá acesso; acesso a outro titular não vale; membro não edita nem remove dependente do titular; pet → pessoa limpa a espécie
+  - ERP: `ErpMockAdapter`; mapeamento de titular/dependente/pet; pedido sem preço/produtos/anexos; campos de status que a tela do admin usa; entrada do ERP (`ErpTokenGuard` e `PUT /erp/pedidos/:id/posologia`); `definirPosologia`
+- Conferência: quebrar de propósito a regra de renovação e a de convite aceito faz os testes falharem
+
+## Checklist de conclusão da Etapa 2
+
+- [x] Interface `ErpIntegrationPort` criada e injetada no NestJS (`ERP_INTEGRATION_PORT` no `OrcamentoModule`)
+- [x] `ErpMockAdapter` funcional alimentando a aplicação localmente (`ERP_MODO=mock`)
+- [x] Conector real isolado em `ErpHttpAdapter` (socket só quando o PO confirmar o protocolo do ERP)
+- [x] Prisma, MinIO (`MinioService`) e e-mail (`EmailService`) direto nos serviços
+- [x] Erros com exceções nativas do NestJS (`HttpException` e subclasses) + filtro global para erros do Prisma
+- [x] Testes Jest do fluxo de 1 clique e do Grupo Família

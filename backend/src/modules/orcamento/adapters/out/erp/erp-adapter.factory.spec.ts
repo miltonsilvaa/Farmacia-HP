@@ -1,25 +1,25 @@
 import { escolherErpAdapter } from './erp-adapter.factory';
-import { HttpErpAdapter } from './http-erp.adapter';
-import { ArquivoErpAdapter } from './arquivo-erp.adapter';
-import { MockErpAdapter } from './mock-erp.adapter';
+import { ErpHttpAdapter } from './erp-http.adapter';
+import { ErpArquivoAdapter } from './erp-arquivo.adapter';
+import { ErpMockAdapter } from './erp-mock.adapter';
 
 describe('escolherErpAdapter', () => {
   it('usa o modo informado em ERP_MODO', () => {
-    expect(escolherErpAdapter({ ERP_MODO: 'mock' })).toBe(MockErpAdapter);
-    expect(escolherErpAdapter({ ERP_MODO: 'arquivo' })).toBe(ArquivoErpAdapter);
+    expect(escolherErpAdapter({ ERP_MODO: 'mock' })).toBe(ErpMockAdapter);
+    expect(escolherErpAdapter({ ERP_MODO: 'arquivo' })).toBe(ErpArquivoAdapter);
     expect(
       escolherErpAdapter({ ERP_MODO: 'http', ERP_URL: 'http://erp' }),
-    ).toBe(HttpErpAdapter);
+    ).toBe(ErpHttpAdapter);
   });
 
   it('aceita maiúsculas e espaços', () => {
-    expect(escolherErpAdapter({ ERP_MODO: ' MOCK ' })).toBe(MockErpAdapter);
+    expect(escolherErpAdapter({ ERP_MODO: ' MOCK ' })).toBe(ErpMockAdapter);
   });
 
   it('sem ERP_MODO mantém o comportamento antigo (ERP_URL decide)', () => {
-    expect(escolherErpAdapter({ ERP_URL: 'http://erp' })).toBe(HttpErpAdapter);
-    expect(escolherErpAdapter({})).toBe(ArquivoErpAdapter);
-    expect(escolherErpAdapter({ ERP_URL: '' })).toBe(ArquivoErpAdapter);
+    expect(escolherErpAdapter({ ERP_URL: 'http://erp' })).toBe(ErpHttpAdapter);
+    expect(escolherErpAdapter({})).toBe(ErpArquivoAdapter);
+    expect(escolherErpAdapter({ ERP_URL: '' })).toBe(ErpArquivoAdapter);
   });
 
   it('recusa valores que não são um modo, como "false"', () => {

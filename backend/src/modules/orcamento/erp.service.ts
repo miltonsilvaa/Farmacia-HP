@@ -2,11 +2,11 @@ import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { MinioService } from './minio.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  ERP_PORT,
-  ErpPort,
+  ERP_INTEGRATION_PORT,
+  ErpIntegrationPort,
   FormatoErp,
   PedidoErp,
-} from './core/ports/out/erp.port';
+} from './core/ports/out/erp-integration.port';
 import { serializarPedido } from './core/erp/erp-serializador';
 
 @Injectable()
@@ -16,8 +16,8 @@ export class ErpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly minio: MinioService,
-    @Inject(ERP_PORT)
-    private readonly erpPort: ErpPort,
+    @Inject(ERP_INTEGRATION_PORT)
+    private readonly erpPort: ErpIntegrationPort,
   ) {}
 
   private async montarPedido(id: string): Promise<PedidoErp> {

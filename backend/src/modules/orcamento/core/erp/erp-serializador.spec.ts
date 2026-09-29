@@ -1,5 +1,5 @@
 import { serializarPedido } from './erp-serializador';
-import { PedidoErp } from '../ports/out/erp.port';
+import { PedidoErp } from '../ports/out/erp-integration.port';
 
 const pedido: PedidoErp = {
   pedido: {

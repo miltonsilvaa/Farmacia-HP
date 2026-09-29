@@ -8,7 +8,7 @@ import { MinioService } from './minio.service';
 import { EmailService } from './email.service';
 import { ErpService } from './erp.service';
 import { LembreteRecompraService } from './lembrete-recompra.service';
-import { ERP_PORT } from './core/ports/out/erp.port';
+import { ERP_INTEGRATION_PORT } from './core/ports/out/erp-integration.port';
 import { escolherErpAdapter } from './adapters/out/erp/erp-adapter.factory';
 
 @Module({
@@ -21,7 +21,7 @@ import { escolherErpAdapter } from './adapters/out/erp/erp-adapter.factory';
     ErpService,
     LembreteRecompraService,
     // Só o ERP legado fica atrás de uma porta: ERP_MODO=mock|arquivo|http
-    { provide: ERP_PORT, useClass: escolherErpAdapter() },
+    { provide: ERP_INTEGRATION_PORT, useClass: escolherErpAdapter() },
   ],
 })
 export class OrcamentoModule {}
