@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../lib/api';
 
@@ -15,6 +15,17 @@ interface Familiar {
   id: string;
   nome: string;
   parentesco: string;
+  tipo: 'PESSOA' | 'PET';
+  especie: string | null;
+  proprio: boolean;
+  titularEmail: string | null;
+}
+
+const MAX_ANEXOS = 5;
+
+function rotuloFamiliar(f: Familiar) {
+  const detalhe = f.tipo === 'PET' ? `Pet${f.especie ? ` · ${f.especie}` : ''}` : f.parentesco;
+  return `${f.nome} — ${detalhe}`;
 }
 
 interface ItemCarrinho {
@@ -26,6 +37,8 @@ interface ItemCarrinho {
 
 export default function NovoOrcamento() {
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [anexos, setAnexos] = useState<File[]>([]);
+  const [sugestoes, setSugestoes] = useState<Produto[]>([]);
   const [observacoes, setObservacoes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -47,9 +60,46 @@ export default function NovoOrcamento() {
       .catch(() => {});
   }, []);
 
+  // Sugestões de produtos complementares aos que já estão no pedido
+  const idsNoCarrinho = Array.from(carrinho.keys()).sort().join(',');
+  useEffect(() => {
+    if (!idsNoCarrinho) return;
+    let cancelado = false;
+    apiFetch(`/produtos/sugestoes?ids=${encodeURIComponent(idsNoCarrinho)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((lista) => {
+        if (!cancelado) setSugestoes(lista);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [idsNoCarrinho]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setArquivo(e.target.files[0]);
   };
+
+  const handleAnexosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const novos = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    const muitoGrandes = novos.filter((f) => f.size > 10 * 1024 * 1024);
+    if (muitoGrandes.length > 0) {
+      toast.error('Cada anexo pode ter no máximo 10MB.');
+    }
+    setAnexos((prev) => {
+      const combinados = [...prev, ...novos.filter((f) => f.size <= 10 * 1024 * 1024)];
+      if (combinados.length > MAX_ANEXOS) {
+        toast.error(`Você pode enviar até ${MAX_ANEXOS} anexos.`);
+      }
+      return combinados.slice(0, MAX_ANEXOS);
+    });
+  };
+
+  const sugestoesVisiveis = idsNoCarrinho ? sugestoes.filter((p) => !carrinho.has(p.id)) : [];
+
+  const removerAnexo = (indice: number) =>
+    setAnexos((prev) => prev.filter((_, i) => i !== indice));
 
   const adicionarAoCarrinho = (produto: Produto) => {
     setCarrinho((prev) => {
@@ -99,6 +149,7 @@ export default function NovoOrcamento() {
     try {
       const formData = new FormData();
       formData.append('arquivo', arquivo);
+      anexos.forEach((a) => formData.append('anexos', a));
       if (observacoes) formData.append('observacoes', observacoes);
       if (familiarId) formData.append('familiarId', familiarId);
 
@@ -119,8 +170,11 @@ export default function NovoOrcamento() {
         setSucesso(true);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Erro do backend:', errorData);
-        toast.error('Tivemos um problema ao processar sua receita. Tente novamente.');
+        toast.error(
+          typeof errorData.message === 'string'
+            ? errorData.message
+            : 'Tivemos um problema ao processar sua receita. Tente novamente.',
+        );
       }
     } catch {
       toast.error('Não foi possível conectar com o servidor. O backend está rodando?');
@@ -134,7 +188,7 @@ export default function NovoOrcamento() {
       <div className="animate-fade-in max-w-2xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
           <div className="flex flex-col items-center justify-center text-center py-8">
-            <div className="text-6xl mb-4">✅</div>
+            <div className="text-6xl mb-4" aria-hidden="true">✅</div>
             <h2 className="text-2xl font-bold text-green-700 mb-2">Receita enviada com sucesso!</h2>
             <p className="text-gray-600 mb-8 max-w-md">
               Nossa equipe de farmacêuticos já recebeu o seu arquivo. Você receberá o orçamento
@@ -177,18 +231,35 @@ export default function NovoOrcamento() {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm disabled:bg-gray-100"
               >
                 <option value="">Para mim mesmo (titular da conta)</option>
-                {familiares.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome} — {f.parentesco}
-                  </option>
-                ))}
+                {familiares.some((f) => f.proprio) && (
+                  <optgroup label="Meus dependentes">
+                    {familiares
+                      .filter((f) => f.proprio)
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {rotuloFamiliar(f)}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+                {familiares.some((f) => !f.proprio) && (
+                  <optgroup label="Compartilhados com você">
+                    {familiares
+                      .filter((f) => !f.proprio)
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {rotuloFamiliar(f)} ({f.titularEmail})
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
               {familiares.length === 0 && (
                 <p className="mt-2 text-xs text-gray-400">
                   Nenhum dependente cadastrado.{' '}
-                  <a href="/grupo-familia" className="text-blue-600 hover:underline">
+                  <Link to="/grupo-familia" className="text-blue-600 hover:underline">
                     Adicionar no Grupo Família
-                  </a>
+                  </Link>
                 </p>
               )}
             </div>
@@ -207,7 +278,7 @@ export default function NovoOrcamento() {
                 <div className="flex flex-col items-center justify-center text-center px-4">
                   {arquivo ? (
                     <>
-                      <div className="text-3xl mb-1">✅</div>
+                      <div className="text-3xl mb-1" aria-hidden="true">✅</div>
                       <p className="text-sm text-green-700 font-semibold truncate max-w-xs">
                         {arquivo.name}
                       </p>
@@ -215,7 +286,7 @@ export default function NovoOrcamento() {
                     </>
                   ) : (
                     <>
-                      <div className="text-3xl mb-1 text-gray-400">📄</div>
+                      <div className="text-3xl mb-1 text-gray-400" aria-hidden="true">📄</div>
                       <p className="text-sm text-gray-500">
                         <span className="font-semibold">Clique para upload</span> ou arraste
                       </p>
@@ -234,9 +305,57 @@ export default function NovoOrcamento() {
               </label>
             </div>
 
+            {/* Anexos */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="font-semibold text-gray-800">3. Outros anexos (Opcional)</h2>
+              <p className="text-xs text-gray-500 mt-1 mb-4">
+                Exames, laudos ou receitas complementares. Até {MAX_ANEXOS} arquivos (imagem ou PDF, máx. 10MB cada).
+              </p>
+              {anexos.length > 0 && (
+                <ul className="mb-3 flex flex-col gap-2">
+                  {anexos.map((a, i) => (
+                    <li
+                      key={`${a.name}-${i}`}
+                      className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                    >
+                      <span className="truncate text-gray-700">{a.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removerAnexo(i)}
+                        disabled={isSubmitting}
+                        aria-label={`Remover anexo ${a.name}`}
+                        className="shrink-0 text-red-600 hover:underline text-xs font-semibold disabled:opacity-50"
+                      >
+                        Remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {anexos.length < MAX_ANEXOS && (
+                <label
+                  htmlFor="anexos-file"
+                  className={`inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <span aria-hidden="true">📎</span> Adicionar anexos
+                  <input
+                    id="anexos-file"
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    accept="image/*,.pdf"
+                    onChange={handleAnexosChange}
+                    disabled={isSubmitting}
+                  />
+                </label>
+              )}
+            </div>
+
             {/* Observações */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 id="titulo-observacoes" className="font-semibold text-gray-800 mb-4">3. Observações (Opcional)</h2>
+              <h2 id="titulo-observacoes" className="font-semibold text-gray-800 mb-4">4. Observações (Opcional)</h2>
               <textarea
                 aria-labelledby="titulo-observacoes"
                 rows={3}
@@ -282,11 +401,12 @@ export default function NovoOrcamento() {
                       <button
                         type="button"
                         onClick={() => removerDoCarrinho(item.produtoId)}
+                        aria-label={`Diminuir quantidade de ${item.nome}`}
                         className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-600 hover:bg-red-50 hover:text-red-600 text-xs font-bold"
                       >
                         −
                       </button>
-                      <span className="w-5 text-center text-sm font-semibold">
+                      <span className="w-5 text-center text-sm font-semibold" aria-live="polite">
                         {item.quantidade}
                       </span>
                       <button
@@ -300,6 +420,7 @@ export default function NovoOrcamento() {
                             imagemUrl: null,
                           })
                         }
+                        aria-label={`Aumentar quantidade de ${item.nome}`}
                         className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-600 hover:bg-green-50 hover:text-green-600 text-xs font-bold"
                       >
                         +
@@ -317,12 +438,47 @@ export default function NovoOrcamento() {
             </div>
           )}
 
+          {/* Sugestões de complementares */}
+          {sugestoesVisiveis.length > 0 && (
+            <section
+              aria-labelledby="titulo-sugestoes"
+              className="bg-emerald-50 border border-emerald-100 rounded-xl p-4"
+            >
+              <h3 id="titulo-sugestoes" className="font-semibold text-emerald-900 text-sm">
+                Combina com o seu pedido
+              </h3>
+              <p className="text-xs text-emerald-700 mt-0.5 mb-3">
+                Produtos complementares indicados pela farmácia
+              </p>
+              <ul className="flex flex-col gap-2">
+                {sugestoesVisiveis.map((produto) => (
+                  <li key={produto.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{produto.nome}</p>
+                      <p className="text-xs text-green-700 font-semibold">
+                        R$ {Number(produto.preco).toFixed(2).replace('.', ',')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => adicionarAoCarrinho(produto)}
+                      aria-label={`Adicionar ${produto.nome} ao pedido`}
+                      className="shrink-0 px-2.5 py-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors"
+                    >
+                      + Add
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Catálogo */}
           {produtos.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-4 border-b border-gray-100">
                 <h3 className="font-semibold text-gray-800 text-sm">
-                  4. Adicionar Produtos ao Pedido
+                  5. Adicionar Produtos ao Pedido
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">Opcional — agiliza o preparo</p>
               </div>
@@ -342,6 +498,7 @@ export default function NovoOrcamento() {
                           <button
                             type="button"
                             onClick={() => removerDoCarrinho(produto.id)}
+                            aria-label={`Diminuir quantidade de ${produto.nome}`}
                             className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded text-sm font-bold"
                           >
                             −
@@ -352,6 +509,7 @@ export default function NovoOrcamento() {
                           <button
                             type="button"
                             onClick={() => adicionarAoCarrinho(produto)}
+                            aria-label={`Aumentar quantidade de ${produto.nome}`}
                             className="w-7 h-7 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-bold"
                           >
                             +
@@ -361,6 +519,7 @@ export default function NovoOrcamento() {
                         <button
                           type="button"
                           onClick={() => adicionarAoCarrinho(produto)}
+                          aria-label={`Adicionar ${produto.nome} ao pedido`}
                           className="px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors"
                         >
                           + Add

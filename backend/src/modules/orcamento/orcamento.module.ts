@@ -13,8 +13,10 @@ import { MinioStorageAdapter } from './adapters/out/storage/minio-storage.adapte
 import { NOTIFICACAO_PORT } from './core/ports/out/notificacao.port';
 import { EmailNotificacaoAdapter } from './adapters/out/notificacao/email-notificacao.adapter';
 
+import { FamiliarModule } from '../familiar/familiar.module';
+
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, FamiliarModule],
   controllers: [OrcamentoController],
   providers: [
     OrcamentoService,

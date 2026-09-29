@@ -9,6 +9,7 @@ import { STORAGE_PORT } from '../ports/out/storage.port';
 import { NOTIFICACAO_PORT, NotificacaoPort } from '../ports/out/notificacao.port';
 import { Orcamento } from '../entities/orcamento.entity';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { FamiliarService } from '../../../familiar/familiar.service';
 
 @Injectable()
 export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
@@ -23,15 +24,18 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
 
     @Inject(NOTIFICACAO_PORT)
     private readonly notificacao: NotificacaoPort,
+
+    private readonly familiarService: FamiliarService,
   ) {}
 
   async executar(command: EnviarReceitaCommand): Promise<{ id: string }> {
     if (command.familiarId) {
-      const familiar = await this.prisma.familiar.findFirst({
-        where: { id: command.familiarId, usuarioId: command.clienteId },
-      });
-      if (!familiar) {
-        throw new ForbiddenException('Este dependente não pertence à sua conta.');
+      const permitido = await this.familiarService.podeAcessarFamiliar(
+        command.clienteId,
+        command.familiarId,
+      );
+      if (!permitido) {
+        throw new ForbiddenException('Este dependente não pertence ao seu Grupo Família.');
       }
     }
 
@@ -51,6 +55,21 @@ export class EnviarReceitaUseCase implements EnviarReceitaUseCasePort {
     );
 
     await this.orcamentoRepository.salvar(novoOrcamento);
+
+    for (const anexo of command.anexos ?? []) {
+      const anexoUrl = await this.storagePort.uploadArquivo(
+        anexo.nomeArquivo,
+        anexo.buffer,
+        anexo.mimetype,
+      );
+      await this.prisma.orcamentoAnexo.create({
+        data: {
+          orcamentoId: novoOrcamento.id,
+          arquivoUrl: anexoUrl,
+          nomeArquivo: anexo.nomeArquivo,
+        },
+      });
+    }
 
     if (command.itens && command.itens.length > 0) {
       for (const item of command.itens) {

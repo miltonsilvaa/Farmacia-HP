@@ -20,6 +20,9 @@ model Usuario {
   atualizadoEm DateTime    @updatedAt
   familiares   Familiar[]
   orcamentos   Orcamento[]
+
+  acessosConcedidos FamiliaAcesso[] @relation("AcessosConcedidos")
+  acessosRecebidos  FamiliaAcesso[] @relation("AcessosRecebidos")
 }
 
 model Familiar {
@@ -27,6 +30,8 @@ model Familiar {
   usuarioId      String
   nome           String
   parentesco     String
+  tipo           String      @default("PESSOA") // PESSOA | PET
+  especie        String?     // só para pets (Cão, Gato...)
   dataNascimento DateTime?
 
   usuario        Usuario     @relation(fields: [usuarioId], references: [id])
@@ -49,8 +54,38 @@ model Orcamento {
   usuario           Usuario          @relation(fields: [clienteId], references: [id])
   familiar          Familiar?        @relation(fields: [familiarId], references: [id])
   itens             OrcamentoItem[]
+  anexos            OrcamentoAnexo[]
 
   @@map("orcamentos")
+}
+
+// Arquivos extras do pedido (exames, laudos, receitas adicionais)
+model OrcamentoAnexo {
+  id          String    @id @default(uuid())
+  orcamentoId String
+  arquivoUrl  String
+  nomeArquivo String
+  criadoEm   DateTime  @default(now())
+
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@map("orcamento_anexos")
+}
+
+// Convite do titular para outro usuário acessar os dependentes do Grupo Família
+model FamiliaAcesso {
+  id             String    @id @default(uuid())
+  titularId      String
+  emailConvidado String
+  membroId       String?
+  status         String    @default("PENDENTE") // PENDENTE | ACEITO
+  criadoEm      DateTime  @default(now())
+
+  titular        Usuario   @relation("AcessosConcedidos", fields: [titularId], references: [id])
+  membro         Usuario?  @relation("AcessosRecebidos", fields: [membroId], references: [id])
+
+  @@unique([titularId, emailConvidado])
+  @@map("familia_acessos")
 }
 
 model Produto {
@@ -65,6 +100,10 @@ model Produto {
   atualizadoEm DateTime        @updatedAt
 
   itens        OrcamentoItem[]
+
+  // Produtos complementares marcados pelo admin (a relação é lida nos dois sentidos)
+  relacionados   Produto[]     @relation("ProdutosRelacionados")
+  relacionadoPor Produto[]     @relation("ProdutosRelacionados")
 
   @@map("produtos")
 }

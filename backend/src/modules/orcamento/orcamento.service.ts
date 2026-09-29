@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
 import { NOTIFICACAO_PORT, NotificacaoPort } from './core/ports/out/notificacao.port';
+import { FamiliarService } from '../familiar/familiar.service';
+
+// Status em que o pedido já foi concluído e pode ser refeito com 1 clique
+const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO'];
 
 @Injectable()
 export class OrcamentoService {
@@ -11,6 +16,7 @@ export class OrcamentoService {
     private readonly storagePort: StoragePort,
     @Inject(NOTIFICACAO_PORT)
     private readonly notificacao: NotificacaoPort,
+    private readonly familiarService: FamiliarService,
   ) {}
 
   private async notificar(clienteId: string, pedidoId: string, status: string, preco?: unknown, mensagem?: string | null) {
@@ -27,22 +33,53 @@ export class OrcamentoService {
     }
   }
 
+  private async assinarArquivos<
+    T extends { arquivoReceitaUrl: string; anexos: { arquivoUrl: string }[] },
+  >(o: T): Promise<T> {
+    return {
+      ...o,
+      arquivoReceitaUrl: await this.assinarUrl(o.arquivoReceitaUrl),
+      anexos: await Promise.all(
+        o.anexos.map(async (a) => ({ ...a, arquivoUrl: await this.assinarUrl(a.arquivoUrl) })),
+      ),
+    };
+  }
+
+  // Pedidos que o usuário pode ver: os que ele fez e os dos dependentes do seu
+  // Grupo Família (próprio ou compartilhado com ele por convite)
+  private async filtroAcesso(usuarioId: string): Promise<Prisma.OrcamentoWhereInput> {
+    const titulares = await this.familiarService.titularesAcessiveis(usuarioId);
+    return {
+      OR: [
+        { clienteId: usuarioId },
+        { familiar: { usuarioId: { in: [usuarioId, ...titulares] } } },
+      ],
+    };
+  }
+
+  private async buscarComAcesso(id: string, usuarioId: string) {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id, ...(await this.filtroAcesso(usuarioId)) },
+      include: { itens: true, anexos: true },
+    });
+    if (!orcamento) {
+      throw new NotFoundException('Pedido não encontrado ou não pertence ao seu Grupo Família.');
+    }
+    return orcamento;
+  }
+
   async listarTodos() {
     const rows = await this.prisma.orcamento.findMany({
       orderBy: { criadoEm: 'desc' },
       include: {
         usuario: { select: { email: true } },
         itens: { include: { produto: true } },
-        familiar: { select: { id: true, nome: true, parentesco: true } },
+        anexos: true,
+        familiar: { select: { id: true, nome: true, parentesco: true, tipo: true, especie: true } },
       },
     });
 
-    return Promise.all(
-      rows.map(async (o) => ({
-        ...o,
-        arquivoReceitaUrl: await this.assinarUrl(o.arquivoReceitaUrl),
-      })),
-    );
+    return Promise.all(rows.map((o) => this.assinarArquivos(o)));
   }
 
   async avaliarOrcamento(
@@ -68,27 +105,30 @@ export class OrcamentoService {
 
   async listarPorUsuario(usuarioId: string) {
     const rows = await this.prisma.orcamento.findMany({
-      where: { clienteId: usuarioId },
+      where: await this.filtroAcesso(usuarioId),
       orderBy: { criadoEm: 'desc' },
       include: {
+        usuario: { select: { email: true } },
         itens: { include: { produto: true } },
-        familiar: { select: { id: true, nome: true, parentesco: true } },
+        anexos: true,
+        familiar: {
+          select: { id: true, nome: true, parentesco: true, tipo: true, especie: true, usuarioId: true },
+        },
       },
     });
 
     return Promise.all(
-      rows.map(async (o) => ({
-        ...o,
-        arquivoReceitaUrl: await this.assinarUrl(o.arquivoReceitaUrl),
+      rows.map(async ({ usuario, ...o }) => ({
+        ...(await this.assinarArquivos(o)),
+        // Só expõe quem fez o pedido quando foi outro membro da família
+        solicitadoPor: o.clienteId === usuarioId ? null : usuario.email,
       })),
     );
   }
 
   async responderCliente(id: string, acao: string, usuarioId: string) {
-    const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
+    const orcamento = await this.buscarComAcesso(id, usuarioId);
 
-    if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
-    if (orcamento.clienteId !== usuarioId) throw new ForbiddenException('Este orçamento não pertence ao usuário.');
     if (orcamento.status !== 'AGUARDANDO_PAGAMENTO') {
       throw new BadRequestException('Só é possível responder orçamentos com status AGUARDANDO_PAGAMENTO.');
     }
@@ -99,32 +139,53 @@ export class OrcamentoService {
       where: { id },
       data: { status: novoStatus },
     });
-    await this.notificar(usuarioId, id, novoStatus);
+    await this.notificar(orcamento.clienteId, id, novoStatus);
     return atualizado;
   }
 
+  // Renovação em 1 clique: repete receita, anexos, paciente e produtos do pedido original
   async renovarPedido(pedidoAntigoId: string, usuarioId: string) {
-    const pedidoOriginal = await this.prisma.orcamento.findFirst({
-      where: { id: pedidoAntigoId, clienteId: usuarioId },
-    });
+    const pedidoOriginal = await this.buscarComAcesso(pedidoAntigoId, usuarioId);
 
-    if (!pedidoOriginal) {
-      throw new NotFoundException('Pedido não encontrado ou não pertence ao usuário.');
+    if (!STATUS_RENOVAVEIS.includes(pedidoOriginal.status)) {
+      throw new BadRequestException('Só é possível renovar pedidos em produção ou finalizados.');
     }
+
+    const produtosAtivos = await this.prisma.produto.findMany({
+      where: { id: { in: pedidoOriginal.itens.map((i) => i.produtoId) }, ativo: true },
+    });
+    const precoAtual = new Map(produtosAtivos.map((p) => [p.id, p.preco]));
 
     const novoPedido = await this.prisma.orcamento.create({
       data: {
-        clienteId: pedidoOriginal.clienteId,
+        clienteId: usuarioId,
         familiarId: pedidoOriginal.familiarId ?? null,
         arquivoReceitaUrl: pedidoOriginal.arquivoReceitaUrl,
         status: 'PENDENTE',
         observacoes: pedidoOriginal.observacoes
-          ? `[Renovação] ${pedidoOriginal.observacoes}`
+          ? `[Renovação] ${pedidoOriginal.observacoes.replace(/^\[Renovação\]\s*/, '')}`
           : '[Renovação automática]',
+        itens: {
+          create: pedidoOriginal.itens
+            .filter((i) => precoAtual.has(i.produtoId))
+            .map((i) => ({
+              produtoId: i.produtoId,
+              quantidade: i.quantidade,
+              precoUnitario: precoAtual.get(i.produtoId)!,
+            })),
+        },
+        anexos: {
+          create: pedidoOriginal.anexos.map((a) => ({
+            arquivoUrl: a.arquivoUrl,
+            nomeArquivo: a.nomeArquivo,
+          })),
+        },
       },
     });
 
+    const itensIndisponiveis = pedidoOriginal.itens.filter((i) => !precoAtual.has(i.produtoId)).length;
+
     await this.notificar(usuarioId, novoPedido.id, 'PENDENTE');
-    return { sucesso: true, novoId: novoPedido.id };
+    return { sucesso: true, novoId: novoPedido.id, itensIndisponiveis };
   }
 }

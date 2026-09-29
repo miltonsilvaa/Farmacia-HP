@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, UseGuards,
+  Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { ProdutosService } from './produtos.service';
 import { JwtAuthGuard } from '../modules/auth/core/guards/jwt-auth.guard';
@@ -15,6 +15,12 @@ export class ProdutosController {
   @Get()
   listarAtivos() {
     return this.produtosService.listarAtivos();
+  }
+
+  // Rota pública — complementares dos produtos do pedido (?ids=a,b)
+  @Get('sugestoes')
+  sugestoes(@Query('ids') ids = '') {
+    return this.produtosService.sugestoes(ids.split(',').filter(Boolean));
   }
 
   // ── Rotas de Admin ─────────────────────────────────────────────────────────

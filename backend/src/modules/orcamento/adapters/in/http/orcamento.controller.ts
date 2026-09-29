@@ -5,7 +5,7 @@ import {
   Post,
   Patch,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
   Body,
   Inject,
   Param,
@@ -13,7 +13,7 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../../../auth/core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/core/guards/roles.guard';
 import { Roles } from '../../../../auth/core/guards/roles.decorator';
@@ -63,19 +63,27 @@ export class OrcamentoController {
   @Post('receita')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    FileInterceptor('arquivo', {
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        const ok = file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf';
-        cb(ok ? null : new BadRequestException('Envie apenas imagem ou PDF.'), ok);
+    FileFieldsInterceptor(
+      [
+        { name: 'arquivo', maxCount: 1 },
+        { name: 'anexos', maxCount: 5 },
+      ],
+      {
+        limits: { fileSize: 10 * 1024 * 1024 },
+        fileFilter: (_req, file, cb) => {
+          const ok = file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf';
+          cb(ok ? null : new BadRequestException('Envie apenas imagem ou PDF.'), ok);
+        },
       },
-    }),
+    ),
   )
   async enviarReceita(
-    @UploadedFile() arquivo: Express.Multer.File,
+    @UploadedFiles()
+    arquivos: { arquivo?: Express.Multer.File[]; anexos?: Express.Multer.File[] },
     @Body() body: { observacoes?: string; itens?: string; familiarId?: string },
     @Request() req: any,
   ) {
+    const arquivo = arquivos?.arquivo?.[0];
     if (!arquivo) {
       throw new BadRequestException('O arquivo da receita é obrigatório.');
     }
@@ -94,6 +102,11 @@ export class OrcamentoController {
       nomeArquivo: arquivo.originalname,
       buffer: arquivo.buffer,
       mimetype: arquivo.mimetype,
+      anexos: (arquivos.anexos ?? []).map((a) => ({
+        nomeArquivo: a.originalname,
+        buffer: a.buffer,
+        mimetype: a.mimetype,
+      })),
       observacoes: body.observacoes,
       itens,
       familiarId: body.familiarId || undefined,

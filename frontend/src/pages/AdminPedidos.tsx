@@ -19,6 +19,7 @@ interface OrcamentoAdmin {
   preco: string | null;
   usuario: { email: string };
   itens: OrcamentoItem[];
+  anexos: { id: string; arquivoUrl: string; nomeArquivo: string }[];
   familiar: { nome: string; parentesco: string } | null;
 }
 
@@ -152,6 +153,18 @@ export default function AdminPedidos() {
                           >
                             Ver arquivo
                           </a>
+                          {o.anexos?.map((anexo, i) => (
+                            <a
+                              key={anexo.id}
+                              href={anexo.arquivoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={anexo.nomeArquivo}
+                              className="block text-blue-600 hover:underline text-xs mt-1"
+                            >
+                              Anexo {i + 1}
+                            </a>
+                          ))}
                         </td>
                         <td className="py-4 px-5">
                           {o.itens && o.itens.length > 0 ? (

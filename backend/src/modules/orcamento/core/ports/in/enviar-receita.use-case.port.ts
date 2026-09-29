@@ -3,11 +3,18 @@ export interface ItemCarrinho {
   quantidade: number;
 }
 
+export interface ArquivoAnexo {
+  nomeArquivo: string;
+  buffer: Buffer;
+  mimetype: string;
+}
+
 export interface EnviarReceitaCommand {
   clienteId: string;
   nomeArquivo: string;
   buffer: Buffer;
   mimetype: string;
+  anexos?: ArquivoAnexo[];
   observacoes?: string;
   itens?: ItemCarrinho[];
   familiarId?: string;

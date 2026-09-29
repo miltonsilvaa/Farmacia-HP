@@ -10,6 +10,7 @@ interface Produto {
   estoque: number;
   imagemUrl: string | null;
   ativo: boolean;
+  relacionadosIds: string[];
 }
 
 interface FormState {
@@ -19,6 +20,7 @@ interface FormState {
   estoque: string;
   imagemUrl: string;
   ativo: boolean;
+  relacionadosIds: string[];
 }
 
 const formVazio: FormState = {
@@ -28,6 +30,7 @@ const formVazio: FormState = {
   estoque: '0',
   imagemUrl: '',
   ativo: true,
+  relacionadosIds: [],
 };
 
 export default function AdminProdutos() {
@@ -74,6 +77,7 @@ export default function AdminProdutos() {
       estoque: String(p.estoque),
       imagemUrl: p.imagemUrl ?? '',
       ativo: p.ativo,
+      relacionadosIds: p.relacionadosIds ?? [],
     });
     setModalAberto(true);
   };
@@ -95,6 +99,7 @@ export default function AdminProdutos() {
       estoque: parseInt(form.estoque, 10) || 0,
       imagemUrl: form.imagemUrl || undefined,
       ativo: form.ativo,
+      relacionadosIds: form.relacionadosIds,
     };
 
     try {
@@ -113,13 +118,8 @@ export default function AdminProdutos() {
 
       if (!res.ok) throw new Error();
 
-      const salvo = await res.json();
-
-      setProdutos((prev) =>
-        produtoEditando
-          ? prev.map((p) => (p.id === salvo.id ? salvo : p))
-          : [...prev, salvo],
-      );
+      // Recarrega para refletir os relacionados nos dois produtos da ligação
+      await carregarProdutos();
 
       toast.success(produtoEditando ? 'Produto atualizado!' : 'Produto criado com sucesso!');
       fecharModal();
@@ -146,6 +146,16 @@ export default function AdminProdutos() {
       setIsInativando(null);
     }
   };
+
+  const alternarRelacionado = (id: string) =>
+    setForm((f) => ({
+      ...f,
+      relacionadosIds: f.relacionadosIds.includes(id)
+        ? f.relacionadosIds.filter((r) => r !== id)
+        : [...f.relacionadosIds, id],
+    }));
+
+  const outrosProdutos = produtos.filter((p) => p.id !== produtoEditando?.id && p.ativo);
 
   const campo = (campo: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -316,6 +326,34 @@ export default function AdminProdutos() {
                   placeholder="https://..."
                 />
               </div>
+
+              {/* Produtos complementares */}
+              {outrosProdutos.length > 0 && (
+                <fieldset>
+                  <legend className="block text-sm font-semibold text-gray-700 mb-1">
+                    Produtos complementares
+                  </legend>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Sugeridos ao cliente quando este produto estiver no pedido (e vice-versa).
+                  </p>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {outrosProdutos.map((p) => (
+                      <label
+                        key={p.id}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.relacionadosIds.includes(p.id)}
+                          onChange={() => alternarRelacionado(p.id)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        {p.nome}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
 
               {/* Ativo */}
               {produtoEditando && (

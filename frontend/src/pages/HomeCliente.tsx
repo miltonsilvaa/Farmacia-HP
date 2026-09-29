@@ -12,7 +12,7 @@ export default function HomeCliente() {
         
         {/* Card 1: Upload de Receita */}
         <Link to="/novo-orcamento" className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform" aria-hidden="true">
             📄
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Enviar Receita</h2>
@@ -20,8 +20,8 @@ export default function HomeCliente() {
         </Link>
 
         {/* Card 2: Renovação 1 Clique */}
-        <Link to="/meus-pedidos" className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:green-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+        <Link to="/meus-pedidos" className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-green-500 transition-all cursor-pointer group flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform" aria-hidden="true">
             🔄
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Renovar Pedido</h2>
@@ -30,7 +30,7 @@ export default function HomeCliente() {
 
         {/* Card 3: Grupo Família */}
         <Link to="/grupo-familia" className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-purple-500 transition-all cursor-pointer group flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+          <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform" aria-hidden="true">
             👨‍👩‍👧‍👦
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Grupo Família</h2>
