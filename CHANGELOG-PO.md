@@ -100,3 +100,19 @@
 3. Correção: `@nestjs/schedule` v12 é só ESM e o backend é CommonJS (os testes pegaram); fixado na v6, compatível com Nest 11
 4. Código morto removido (nenhum comportamento muda): use-cases/repositórios de família e de renovação que não eram usados, `LoginUseCase` com usuário simulado, módulo `produto-teste`, `AppController` "Hello World", DTOs/entidades vazios e o teste e2e do "Hello World"
 5. Formatação padronizada com o Prettier do projeto e avisos de lint corrigidos (promises soltas, `async` sem `await`, asserções desnecessárias). Restam só avisos de `any` nos controllers, a tratar com validação de entrada
+
+# Etapa 2 — Qualidade de código, Fase 2 (28/09/2026)
+
+> Backup antes desta fase: tag `snapshot-qualidade-fase1-2026-09-28`. Sem mudança de banco nem de dependências.
+
+1. Prisma direto: envio de receita saiu de `EnviarReceitaUseCase` → `OrcamentoRepositoryPort` → adapter → entidade e virou `OrcamentoService.criarPedido`, com um único `create` (pedido, anexos e produtos gravados juntos; antes um erro no meio deixava pedido pela metade)
+2. MinIO e e-mail diretos: `MinioService` e `EmailService` injetados pela classe (sem `STORAGE_PORT`/`NOTIFICACAO_PORT`). Porta/adapter agora só no ERP legado
+3. Exceções nativas com o código HTTP certo:
+   - **Bug corrigido:** `responderCliente` cancelava o pedido com qualquer ação diferente de `APROVAR`; agora só aceita `APROVAR`/`RECUSAR` (400)
+   - Cadastro: só e-mail repetido vira 409 (antes qualquer erro, até banco fora do ar, dizia "e-mail já cadastrado", e o controller ainda trocava por 400); e-mail inválido ou senha curta viram 400; e-mail salvo em minúsculas e busca sem diferenciar maiúsculas (contas antigas continuam entrando)
+   - Login: mesma mensagem para e-mail inexistente e senha errada (não revela quem tem conta); sem senha vira 400 em vez de 500
+   - Enviar orçamento exige preço maior que zero; itens do pedido validados (quantidade inteira de 1 a 99)
+   - Produtos: só campos conhecidos são gravados e preço/estoque/nome são validados (antes campo extra ou preço inválido davam 500)
+   - MinIO fora do ar responde 503 com mensagem clara
+   - Filtro global `PrismaExceptionFilter`: registro inexistente 404, duplicado 409, referência inválida/dado malformado 400, em todas as rotas sem repetir try/catch
+4. Testes: 95 (eram 62), incluindo os casos acima e o filtro

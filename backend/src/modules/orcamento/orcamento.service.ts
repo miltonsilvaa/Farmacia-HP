@@ -2,20 +2,32 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Inject,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
-import {
-  NOTIFICACAO_PORT,
-  NotificacaoPort,
-} from './core/ports/out/notificacao.port';
+import { MinioService } from './minio.service';
+import { EmailService } from './email.service';
 import { FamiliarService } from '../familiar/familiar.service';
 import { ErpService } from './erp.service';
 
 // Status em que o pedido já foi concluído e pode ser refeito com 1 clique
 export const STATUS_RENOVAVEIS = ['PRODUCAO', 'FINALIZADO', 'ENTREGUE'];
+
+export interface ArquivoEnviado {
+  nomeArquivo: string;
+  buffer: Buffer;
+  mimetype: string;
+}
+
+export interface NovoPedido {
+  clienteId: string;
+  receita: ArquivoEnviado;
+  anexos: ArquivoEnviado[];
+  observacoes?: string;
+  itens?: { produtoId: string; quantidade: number }[];
+  familiarId?: string;
+}
 
 // Transições que a equipe da farmácia pode fazer: status novo → status de origem aceitos
 const TRANSICOES_ADMIN: Record<string, string[]> = {
@@ -29,10 +41,8 @@ const TRANSICOES_ADMIN: Record<string, string[]> = {
 export class OrcamentoService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(STORAGE_PORT)
-    private readonly storagePort: StoragePort,
-    @Inject(NOTIFICACAO_PORT)
-    private readonly notificacao: NotificacaoPort,
+    private readonly minio: MinioService,
+    private readonly email: EmailService,
     private readonly familiarService: FamiliarService,
     private readonly erpService: ErpService,
   ) {}
@@ -49,7 +59,7 @@ export class OrcamentoService {
       select: { email: true },
     });
     if (!usuario) return;
-    void this.notificacao.notificarStatus({
+    void this.email.notificarStatus({
       email: usuario.email,
       pedidoId,
       status,
@@ -60,7 +70,7 @@ export class OrcamentoService {
 
   private async assinarUrl(arquivoReceitaUrl: string): Promise<string> {
     try {
-      return await this.storagePort.gerarUrlAssinada(arquivoReceitaUrl);
+      return await this.minio.gerarUrlAssinada(arquivoReceitaUrl);
     } catch {
       return arquivoReceitaUrl; // fallback: devolve o que estava (evita quebrar a listagem)
     }
@@ -108,6 +118,83 @@ export class OrcamentoService {
     return orcamento;
   }
 
+  // Novo pedido: sobe os arquivos e grava pedido, anexos e produtos numa só
+  // operação (se o banco falhar, não fica pedido pela metade)
+  async criarPedido(novo: NovoPedido) {
+    if (novo.familiarId) {
+      const permitido = await this.familiarService.podeAcessarFamiliar(
+        novo.clienteId,
+        novo.familiarId,
+      );
+      if (!permitido) {
+        throw new ForbiddenException(
+          'Este dependente não pertence ao seu Grupo Família.',
+        );
+      }
+    }
+
+    const itens = novo.itens ?? [];
+    if (
+      !Array.isArray(itens) ||
+      itens.some(
+        (i) =>
+          typeof i?.produtoId !== 'string' ||
+          !Number.isInteger(i.quantidade) ||
+          i.quantidade < 1 ||
+          i.quantidade > 99,
+      )
+    ) {
+      throw new BadRequestException(
+        'Itens inválidos: informe o produto e uma quantidade entre 1 e 99.',
+      );
+    }
+
+    // Produtos inativos ou inexistentes são ignorados; o preço vem do catálogo
+    const produtos = await this.prisma.produto.findMany({
+      where: { id: { in: itens.map((i) => i.produtoId) }, ativo: true },
+    });
+    const preco = new Map(produtos.map((p) => [p.id, p.preco]));
+
+    const receitaUrl = await this.minio.uploadArquivo(
+      novo.receita.nomeArquivo,
+      novo.receita.buffer,
+      novo.receita.mimetype,
+    );
+    const anexos = await Promise.all(
+      novo.anexos.map(async (a) => ({
+        nomeArquivo: a.nomeArquivo,
+        arquivoUrl: await this.minio.uploadArquivo(
+          a.nomeArquivo,
+          a.buffer,
+          a.mimetype,
+        ),
+      })),
+    );
+
+    const pedido = await this.prisma.orcamento.create({
+      data: {
+        clienteId: novo.clienteId,
+        familiarId: novo.familiarId ?? null,
+        arquivoReceitaUrl: receitaUrl,
+        observacoes: novo.observacoes || null,
+        status: 'PENDENTE',
+        anexos: { create: anexos },
+        itens: {
+          create: itens
+            .filter((i) => preco.has(i.produtoId))
+            .map((i) => ({
+              produtoId: i.produtoId,
+              quantidade: i.quantidade,
+              precoUnitario: preco.get(i.produtoId),
+            })),
+        },
+      },
+    });
+
+    await this.notificar(novo.clienteId, pedido.id, 'PENDENTE');
+    return { id: pedido.id };
+  }
+
   async listarTodos() {
     const rows = await this.prisma.orcamento.findMany({
       orderBy: { criadoEm: 'desc' },
@@ -139,6 +226,13 @@ export class OrcamentoService {
   ) {
     const orcamento = await this.prisma.orcamento.findUnique({ where: { id } });
     if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
+
+    if (
+      status === 'AGUARDANDO_PAGAMENTO' &&
+      (typeof preco !== 'number' || !Number.isFinite(preco) || preco <= 0)
+    ) {
+      throw new BadRequestException('Informe um preço maior que zero.');
+    }
 
     const origensPermitidas = TRANSICOES_ADMIN[status];
     if (!origensPermitidas)
@@ -199,6 +293,10 @@ export class OrcamentoService {
   }
 
   async responderCliente(id: string, acao: string, usuarioId: string) {
+    // Sem esta checagem, qualquer valor diferente de APROVAR cancelava o pedido
+    if (acao !== 'APROVAR' && acao !== 'RECUSAR') {
+      throw new BadRequestException('Ação inválida: use APROVAR ou RECUSAR.');
+    }
     const orcamento = await this.buscarComAcesso(id, usuarioId);
 
     if (orcamento.status !== 'AGUARDANDO_PAGAMENTO') {

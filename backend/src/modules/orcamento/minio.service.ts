@@ -1,16 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Client } from 'minio';
 import * as crypto from 'crypto';
-import { StoragePort } from '../../../core/ports/out/storage.port';
 
+// Armazena receitas e anexos no bucket privado do MinIO; o acesso é sempre por
+// link assinado e temporário
 @Injectable()
-export class MinioStorageAdapter implements StoragePort {
+export class MinioService {
   private minioClient: Client;
   // Cliente usado só para assinar links: precisa do host que o NAVEGADOR enxerga.
   // Dentro do Docker o backend fala com "minio:9000", que o navegador não resolve.
   private linkClient: Client;
   private bucketName = 'receitas';
-  private readonly logger = new Logger(MinioStorageAdapter.name);
+  private readonly logger = new Logger(MinioService.name);
 
   constructor() {
     this.minioClient = new Client({
@@ -86,7 +91,9 @@ export class MinioStorageAdapter implements StoragePort {
       return nomeUnico;
     } catch (error) {
       this.logger.error(`Erro ao fazer upload do arquivo ${nomeUnico}`, error);
-      throw new Error('Falha na comunicação com o servidor de armazenamento.');
+      throw new ServiceUnavailableException(
+        'Não foi possível salvar o arquivo agora. Tente novamente em instantes.',
+      );
     }
   }
 
@@ -101,7 +108,9 @@ export class MinioStorageAdapter implements StoragePort {
       );
     } catch (error) {
       this.logger.error(`Erro ao gerar URL pré-assinada para ${chave}`, error);
-      throw new Error('Não foi possível gerar o link de acesso ao arquivo.');
+      throw new ServiceUnavailableException(
+        'Não foi possível gerar o link de acesso ao arquivo.',
+      );
     }
   }
 
@@ -109,15 +118,22 @@ export class MinioStorageAdapter implements StoragePort {
     objectKey: string,
   ): Promise<{ buffer: Buffer; mimetype: string }> {
     const chave = this.extrairObjectKey(objectKey);
-    const [stat, stream] = await Promise.all([
-      this.minioClient.statObject(this.bucketName, chave),
-      this.minioClient.getObject(this.bucketName, chave),
-    ]);
-    const partes: Buffer[] = [];
-    for await (const parte of stream) partes.push(Buffer.from(parte));
-    return {
-      buffer: Buffer.concat(partes),
-      mimetype: stat.metaData?.['content-type'] ?? 'application/octet-stream',
-    };
+    try {
+      const [stat, stream] = await Promise.all([
+        this.minioClient.statObject(this.bucketName, chave),
+        this.minioClient.getObject(this.bucketName, chave),
+      ]);
+      const partes: Buffer[] = [];
+      for await (const parte of stream) partes.push(Buffer.from(parte));
+      return {
+        buffer: Buffer.concat(partes),
+        mimetype: stat.metaData?.['content-type'] ?? 'application/octet-stream',
+      };
+    } catch (error) {
+      this.logger.error(`Erro ao baixar o arquivo ${chave}`, error);
+      throw new ServiceUnavailableException(
+        'Não foi possível ler o arquivo no armazenamento.',
+      );
+    }
   }
 }

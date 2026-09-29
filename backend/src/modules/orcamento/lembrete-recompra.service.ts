@@ -1,10 +1,7 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  NOTIFICACAO_PORT,
-  NotificacaoPort,
-} from './core/ports/out/notificacao.port';
+import { EmailService } from './email.service';
 import { STATUS_RENOVAVEIS } from './orcamento.service';
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -18,8 +15,7 @@ export class LembreteRecompraService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(NOTIFICACAO_PORT)
-    private readonly notificacao: NotificacaoPort,
+    private readonly email: EmailService,
   ) {}
 
   // Todo dia às 9h: avisa quem fez um pedido aprovado há LEMBRETE_RECOMPRA_DIAS
@@ -57,7 +53,7 @@ export class LembreteRecompraService {
 
       try {
         if (pedidoMaisNovo === 0) {
-          await this.notificacao.lembrarRecompra({
+          await this.email.lembrarRecompra({
             email: pedido.usuario.email,
             pedidoId: pedido.id,
             paciente: pedido.familiar?.nome ?? null,

@@ -7,7 +7,6 @@ import {
   UseInterceptors,
   UploadedFiles,
   Body,
-  Inject,
   Param,
   Request,
   Query,
@@ -24,17 +23,10 @@ import { JwtAuthGuard } from '../../../../auth/core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/core/guards/roles.guard';
 import { Roles } from '../../../../auth/core/guards/roles.decorator';
 import { OrcamentoService } from '../../../orcamento.service';
-import {
-  ENVIAR_RECEITA_USE_CASE,
-  EnviarReceitaUseCasePort,
-} from '../../../core/ports/in/enviar-receita.use-case.port';
 
 @Controller('orcamentos')
 export class OrcamentoController {
   constructor(
-    @Inject(ENVIAR_RECEITA_USE_CASE)
-    private readonly enviarReceitaUseCase: EnviarReceitaUseCasePort,
-
     private readonly orcamentoService: OrcamentoService,
 
     private readonly erpService: ErpService,
@@ -166,11 +158,13 @@ export class OrcamentoController {
       }
     }
 
-    const resultado = await this.enviarReceitaUseCase.executar({
+    const resultado = await this.orcamentoService.criarPedido({
       clienteId: req.user.id,
-      nomeArquivo: arquivo.originalname,
-      buffer: arquivo.buffer,
-      mimetype: arquivo.mimetype,
+      receita: {
+        nomeArquivo: arquivo.originalname,
+        buffer: arquivo.buffer,
+        mimetype: arquivo.mimetype,
+      },
       anexos: (arquivos.anexos ?? []).map((a) => ({
         nomeArquivo: a.originalname,
         buffer: a.buffer,

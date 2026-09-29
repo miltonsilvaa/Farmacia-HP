@@ -78,6 +78,41 @@ describe('ProdutosService', () => {
     });
   });
 
+  describe('validação dos dados', () => {
+    it('grava só os campos conhecidos', async () => {
+      await service.criar({
+        nome: ' Arnica ',
+        preco: 10,
+        id: 'forjado',
+        criadoEm: 'x',
+      } as any);
+      expect(prisma.produto.create.mock.calls[0][0].data).toEqual({
+        nome: 'Arnica',
+        preco: 10,
+      });
+    });
+
+    it.each([
+      [{ nome: '', preco: 10 }, 'nome'],
+      [{ nome: 'A', preco: -1 }, 'preço'],
+      [{ nome: 'A', preco: 'dez' }, 'preço'],
+      [{ nome: 'A', preco: 1, estoque: 1.5 }, 'estoque'],
+      [{ nome: 'A', preco: 1, relacionadosIds: 'p2' }, 'complementares'],
+    ])('recusa %j', async (dados, trecho) => {
+      await expect(service.criar(dados as any)).rejects.toThrow(trecho);
+      expect(prisma.produto.create).not.toHaveBeenCalled();
+    });
+
+    it('na edição só valida o que foi enviado', async () => {
+      await expect(
+        service.atualizar('p1', { estoque: 5 }),
+      ).resolves.toBeDefined();
+      await expect(service.atualizar('p1', { preco: -3 })).rejects.toThrow(
+        'preço',
+      );
+    });
+  });
+
   it('produto inexistente vira 404', async () => {
     prisma.produto.findUnique.mockResolvedValue(null);
     await expect(service.inativar('nao-existe')).rejects.toThrow(

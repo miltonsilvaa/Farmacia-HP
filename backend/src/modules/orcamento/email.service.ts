@@ -1,10 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import {
-  LembreteRecompra,
-  NotificacaoPort,
-  NotificacaoStatus,
-} from '../../../core/ports/out/notificacao.port';
+
+export interface NotificacaoStatus {
+  email: string;
+  pedidoId: string;
+  status: string;
+  preco?: number | string | null;
+  mensagem?: string | null;
+}
+
+export interface LembreteRecompra {
+  email: string;
+  pedidoId: string;
+  paciente: string | null; // null = o próprio titular
+  linkRenovar: string;
+}
 
 const TEXTOS: Record<string, { titulo: string; texto: string }> = {
   PENDENTE: {
@@ -64,9 +74,11 @@ function escaparHtml(texto: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// E-mails padronizados da farmácia. Falha no envio só gera log: um e-mail que
+// não sai não pode desfazer a mudança de status do pedido
 @Injectable()
-export class EmailNotificacaoAdapter implements NotificacaoPort {
-  private readonly logger = new Logger(EmailNotificacaoAdapter.name);
+export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private readonly transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'localhost',
     port: parseInt(process.env.SMTP_PORT || '1025', 10),

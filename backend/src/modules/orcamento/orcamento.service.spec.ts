@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrcamentoService } from './orcamento.service';
 
 // Prisma falso: cada teste define o que as consultas devolvem
@@ -24,12 +28,15 @@ function criarServico(titulares: string[] = []) {
   const prisma = criarPrisma();
   const storage = {
     gerarUrlAssinada: jest.fn((k: string) => Promise.resolve(`url:${k}`)),
+    uploadArquivo: jest.fn((nome: string) => Promise.resolve(`key-${nome}`)),
   };
+  const familiarPodeAcessar = jest.fn().mockResolvedValue(true);
   const notificacao = {
     notificarStatus: jest.fn().mockResolvedValue(undefined),
   };
   const familiarService = {
     titularesAcessiveis: jest.fn().mockResolvedValue(titulares),
+    podeAcessarFamiliar: familiarPodeAcessar,
   };
   const erpService = { sincronizar: jest.fn().mockResolvedValue(undefined) };
   const service = new OrcamentoService(
@@ -39,7 +46,14 @@ function criarServico(titulares: string[] = []) {
     familiarService as any,
     erpService as any,
   );
-  return { service, prisma, notificacao, erpService };
+  return {
+    service,
+    prisma,
+    notificacao,
+    erpService,
+    storage,
+    familiarPodeAcessar,
+  };
 }
 
 describe('OrcamentoService', () => {
@@ -53,7 +67,7 @@ describe('OrcamentoService', () => {
       const { service, prisma, notificacao } = criarServico();
       prisma.orcamento.findUnique.mockResolvedValue({ id: 'p1', status: de });
 
-      await service.avaliarOrcamento('p1', para);
+      await service.avaliarOrcamento('p1', para, 50);
 
       expect(prisma.orcamento.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -77,6 +91,21 @@ describe('OrcamentoService', () => {
       );
       expect(prisma.orcamento.update).not.toHaveBeenCalled();
     });
+
+    it.each([undefined, 0, -5, NaN])(
+      'enviar orçamento exige preço maior que zero (%s)',
+      async (preco) => {
+        const { service, prisma } = criarServico();
+        prisma.orcamento.findUnique.mockResolvedValue({
+          id: 'p1',
+          status: 'PENDENTE',
+        });
+        await expect(
+          service.avaliarOrcamento('p1', 'AGUARDANDO_PAGAMENTO', preco),
+        ).rejects.toThrow('preço');
+        expect(prisma.orcamento.update).not.toHaveBeenCalled();
+      },
+    );
 
     it('recusa status desconhecido', async () => {
       const { service, prisma } = criarServico();
@@ -147,6 +176,19 @@ describe('OrcamentoService', () => {
 
       expect(r.status).toBe('CANCELADO');
       expect(erpService.sincronizar).not.toHaveBeenCalled();
+    });
+
+    it('ação diferente de APROVAR/RECUSAR não cancela o pedido', async () => {
+      const { service, prisma } = criarServico();
+      prisma.orcamento.findFirst.mockResolvedValue({
+        id: 'p1',
+        clienteId: 'u1',
+        status: 'AGUARDANDO_PAGAMENTO',
+      });
+      await expect(service.responderCliente('p1', 'xyz', 'u1')).rejects.toThrow(
+        'Ação inválida',
+      );
+      expect(prisma.orcamento.update).not.toHaveBeenCalled();
     });
 
     it('só responde orçamento aguardando pagamento', async () => {
@@ -263,5 +305,79 @@ describe('OrcamentoService', () => {
         expect(prisma.orcamento.create).not.toHaveBeenCalled();
       },
     );
+  });
+
+  describe('criarPedido', () => {
+    const arquivo = (nome: string) => ({
+      nomeArquivo: nome,
+      buffer: Buffer.from('x'),
+      mimetype: 'application/pdf',
+    });
+
+    it('sobe receita e anexos e grava tudo num único create, com preço do catálogo', async () => {
+      const { service, prisma, storage, notificacao } = criarServico();
+      prisma.produto.findMany.mockResolvedValue([{ id: 'ativo', preco: 20 }]);
+
+      const r = await service.criarPedido({
+        clienteId: 'u1',
+        receita: arquivo('receita.pdf'),
+        anexos: [arquivo('exame.pdf')],
+        observacoes: 'Sem lactose',
+        itens: [
+          { produtoId: 'ativo', quantidade: 2 },
+          { produtoId: 'inativo', quantidade: 1 },
+        ],
+      });
+
+      expect(storage.uploadArquivo).toHaveBeenCalledTimes(2);
+      expect(prisma.orcamento.create).toHaveBeenCalledTimes(1);
+      expect(prisma.orcamento.create.mock.calls[0][0].data).toMatchObject({
+        clienteId: 'u1',
+        familiarId: null,
+        arquivoReceitaUrl: 'key-receita.pdf',
+        observacoes: 'Sem lactose',
+        status: 'PENDENTE',
+        anexos: {
+          create: [{ nomeArquivo: 'exame.pdf', arquivoUrl: 'key-exame.pdf' }],
+        },
+        itens: {
+          create: [{ produtoId: 'ativo', quantidade: 2, precoUnitario: 20 }],
+        },
+      });
+      expect(r).toEqual({ id: 'novo' });
+      expect(notificacao.notificarStatus).toHaveBeenCalled();
+    });
+
+    it.each([
+      [[{ produtoId: 'p', quantidade: 0 }]],
+      [[{ produtoId: 'p', quantidade: 1.5 }]],
+      [[{ produtoId: 'p', quantidade: 100 }]],
+      [[{ quantidade: 1 }]],
+    ])('recusa itens inválidos antes de subir arquivos (%j)', async (itens) => {
+      const { service, storage } = criarServico();
+      await expect(
+        service.criarPedido({
+          clienteId: 'u1',
+          receita: arquivo('r.pdf'),
+          anexos: [],
+          itens: itens as any,
+        }),
+      ).rejects.toThrow('Itens inválidos');
+      expect(storage.uploadArquivo).not.toHaveBeenCalled();
+    });
+
+    it('dependente de fora do Grupo Família é proibido', async () => {
+      const { service, storage, familiarPodeAcessar } = criarServico();
+      familiarPodeAcessar.mockResolvedValue(false);
+      await expect(
+        service.criarPedido({
+          clienteId: 'u1',
+          familiarId: 'f-alheio',
+          receita: arquivo('r.pdf'),
+          anexos: [],
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(storage.uploadArquivo).not.toHaveBeenCalled();
+    });
   });
 });

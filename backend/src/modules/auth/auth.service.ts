@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsuariosService } from '../../usuarios/usuarios.service';
 import * as bcrypt from 'bcryptjs';
@@ -11,14 +15,20 @@ export class AuthService {
   ) {}
 
   async login(email: string, senha: string) {
-    const usuario = await this.usuariosService.buscarPorEmail(email);
-    if (!usuario) {
-      throw new UnauthorizedException('E-mail não encontrado.');
+    if (
+      typeof email !== 'string' ||
+      typeof senha !== 'string' ||
+      !email ||
+      !senha
+    ) {
+      throw new BadRequestException('Informe e-mail e senha.');
     }
 
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    // Mesma mensagem para e-mail inexistente e senha errada: não revela quem tem conta
+    const usuario = await this.usuariosService.buscarPorEmail(email);
+    const senhaValida = usuario && (await bcrypt.compare(senha, usuario.senha));
     if (!senhaValida) {
-      throw new UnauthorizedException('Senha incorreta.');
+      throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
     const payload = {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface DadosProduto {
@@ -11,14 +15,56 @@ interface DadosProduto {
   relacionadosIds?: string[];
 }
 
+// Copia só os campos conhecidos (campo extra no corpo virava erro 500 no Prisma)
+// e barra valores inválidos com 400
+function validarProduto(entrada: Partial<DadosProduto>, criando: boolean) {
+  const dados: Partial<Omit<DadosProduto, 'relacionadosIds'>> = {};
+  const { nome, descricao, preco, estoque, imagemUrl, ativo } = entrada ?? {};
+
+  if (criando || nome !== undefined) {
+    if (typeof nome !== 'string' || !nome.trim()) {
+      throw new BadRequestException('Informe o nome do produto.');
+    }
+    dados.nome = nome.trim();
+  }
+  if (criando || preco !== undefined) {
+    if (typeof preco !== 'number' || !Number.isFinite(preco) || preco < 0) {
+      throw new BadRequestException('Informe um preço válido (zero ou mais).');
+    }
+    dados.preco = preco;
+  }
+  if (estoque !== undefined) {
+    if (!Number.isInteger(estoque) || estoque < 0) {
+      throw new BadRequestException(
+        'O estoque deve ser um número inteiro, zero ou mais.',
+      );
+    }
+    dados.estoque = estoque;
+  }
+  if (descricao !== undefined) dados.descricao = descricao || undefined;
+  if (imagemUrl !== undefined) dados.imagemUrl = imagemUrl || undefined;
+  if (ativo !== undefined) dados.ativo = Boolean(ativo);
+
+  const relacionadosIds = entrada?.relacionadosIds;
+  if (
+    relacionadosIds !== undefined &&
+    (!Array.isArray(relacionadosIds) ||
+      relacionadosIds.some((id) => typeof id !== 'string'))
+  ) {
+    throw new BadRequestException('Produtos complementares inválidos.');
+  }
+  return { dados, relacionadosIds };
+}
+
 @Injectable()
 export class ProdutosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  criar({ relacionadosIds, ...dados }: DadosProduto) {
-    return this.prisma.produto.create({
+  async criar(entrada: DadosProduto) {
+    const { dados, relacionadosIds } = validarProduto(entrada, true);
+    return await this.prisma.produto.create({
       data: {
-        ...dados,
+        ...(dados as DadosProduto),
         ...(relacionadosIds && {
           relacionados: { connect: relacionadosIds.map((id) => ({ id })) },
         }),
@@ -73,10 +119,8 @@ export class ProdutosService {
     return produto;
   }
 
-  async atualizar(
-    id: string,
-    { relacionadosIds, ...dados }: Partial<DadosProduto>,
-  ) {
+  async atualizar(id: string, entrada: Partial<DadosProduto>) {
+    const { dados, relacionadosIds } = validarProduto(entrada, false);
     await this.buscarUm(id);
     if (relacionadosIds) {
       // Limpa os dois lados antes de gravar a nova lista

@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
+import { MinioService } from './minio.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { STORAGE_PORT, StoragePort } from './core/ports/out/storage.port';
 import {
   ERP_PORT,
   ErpPort,
@@ -15,8 +15,7 @@ export class ErpService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(STORAGE_PORT)
-    private readonly storagePort: StoragePort,
+    private readonly minio: MinioService,
     @Inject(ERP_PORT)
     private readonly erpPort: ErpPort,
   ) {}
@@ -83,9 +82,7 @@ export class ErpService {
       })),
       arquivos: await Promise.all(
         arquivos.map(async (a) => {
-          const { buffer, mimetype } = await this.storagePort.baixarArquivo(
-            a.url,
-          );
+          const { buffer, mimetype } = await this.minio.baixarArquivo(a.url);
           return {
             tipo: a.tipo,
             nomeArquivo: a.nome,
