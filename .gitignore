@@ -3,6 +3,10 @@ node_modules/
 .env
 dist/
 .DS_Store
+# Playwright (testes e2e)
+/playwright-report/
+/test-results/
+/blob-report/
 # Impeccable: capturas de revisão e configurações locais
 .impeccable/review/
 .impeccable/config.local.json

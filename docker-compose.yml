@@ -16,7 +16,7 @@ services:
 
   # Armazenamento de Arquivos (MinIO)
   minio:
-    image: minio/minio
+    image: pgsty/silo
     container_name: homeoformula_minio
     ports:
       - "9000:9000" 
