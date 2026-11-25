@@ -14,16 +14,19 @@ export class MinioService {
   // Cliente usado só para assinar links: precisa do host que o NAVEGADOR enxerga.
   // Dentro do Docker o backend fala com "minio:9000", que o navegador não resolve.
   private linkClient: Client;
-  private bucketName = 'receitas';
+  private bucketName = process.env.MINIO_BUCKET_NAME || 'receitas';
   private readonly logger = new Logger(MinioService.name);
 
   constructor() {
+    const region = process.env.MINIO_REGION || 'us-east-1';
+
     this.minioClient = new Client({
       endPoint: process.env.MINIO_ENDPOINT || 'localhost',
       port: parseInt(process.env.MINIO_PORT || '9000', 10),
-      useSSL: false,
+      useSSL: process.env.MINIO_USE_SSL === 'true',
       accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
       secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
+      region,
     });
 
     // Com a região fixa, a assinatura é calculada localmente, sem chamar o host público
@@ -39,17 +42,17 @@ export class MinioService {
       useSSL: process.env.MINIO_PUBLIC_SSL === 'true',
       accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
       secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
-      region: 'us-east-1',
+      region,
     });
 
-    void this.inicializarBucket();
+    void this.inicializarBucket(region);
   }
 
-  private async inicializarBucket() {
+  private async inicializarBucket(region: string) {
     try {
       const existe = await this.minioClient.bucketExists(this.bucketName);
       if (!existe) {
-        await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
+        await this.minioClient.makeBucket(this.bucketName, region);
         this.logger.log(
           `Bucket '${this.bucketName}' criado com sucesso no MinIO.`,
         );
