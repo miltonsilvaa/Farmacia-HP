@@ -1,27 +1,133 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider            = "prisma-client"
-  output              = "../src/generated/prisma"
-  moduleFormat        = "cjs"
-  importFileExtension = "js"
-  generatedFileExtension = "ts"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model ProdutoTeste {
-  id        String   @id @default(uuid())
-  nome      String
-  preco     Float
-  estoque   Int      @default(0)
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now())
+enum Role {
+  ADMIN
+  CLIENTE
+}
+
+model Usuario {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  senha        String
+  role         Role        @default(CLIENTE)
+  criadoEm    DateTime    @default(now())
+  atualizadoEm DateTime    @updatedAt
+  familiares   Familiar[]
+  orcamentos   Orcamento[]
+
+  acessosConcedidos FamiliaAcesso[] @relation("AcessosConcedidos")
+  acessosRecebidos  FamiliaAcesso[] @relation("AcessosRecebidos")
+}
+
+model Familiar {
+  id             String      @id @default(uuid())
+  usuarioId      String
+  nome           String
+  parentesco     String
+  tipo           String      @default("PESSOA") // PESSOA | PET
+  especie        String?     // só para pets (Cão, Gato...)
+  dataNascimento DateTime?
+
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id])
+  orcamentos     Orcamento[]
+
+  @@map("familiares")
+}
+
+model Orcamento {
+  id                String           @id @default(uuid())
+  clienteId         String
+  familiarId        String?
+  arquivoReceitaUrl String
+  status            String           @default("PENDENTE")
+  observacoes       String?
+  respostaAdmin     String?
+  posologia         String?          // modo de uso exibido ao cliente (farmacêutico ou ERP)
+  preco             Decimal?         @db.Decimal(10, 2)
+  criadoEm         DateTime         @default(now())
+
+  // Sincronização com o ERP legado
+  erpStatus         String?          // ENVIADO | ERRO
+  erpEnviadoEm      DateTime?
+  erpErro           String?
+
+  // Lembrete de recompra (uso contínuo) já enviado para este pedido
+  lembreteRecompraEm DateTime?
+
+  usuario           Usuario          @relation(fields: [clienteId], references: [id])
+  familiar          Familiar?        @relation(fields: [familiarId], references: [id])
+  itens             OrcamentoItem[]
+  anexos            OrcamentoAnexo[]
+
+  @@map("orcamentos")
+}
+
+// Arquivos extras do pedido (exames, laudos, receitas adicionais)
+model OrcamentoAnexo {
+  id          String    @id @default(uuid())
+  orcamentoId String
+  arquivoUrl  String
+  nomeArquivo String
+  criadoEm   DateTime  @default(now())
+
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@map("orcamento_anexos")
+}
+
+// Convite do titular para outro usuário acessar os dependentes do Grupo Família
+model FamiliaAcesso {
+  id             String    @id @default(uuid())
+  titularId      String
+  emailConvidado String
+  membroId       String?
+  status         String    @default("PENDENTE") // PENDENTE | ACEITO
+  criadoEm      DateTime  @default(now())
+
+  titular        Usuario   @relation("AcessosConcedidos", fields: [titularId], references: [id])
+  membro         Usuario?  @relation("AcessosRecebidos", fields: [membroId], references: [id])
+
+  @@unique([titularId, emailConvidado])
+  @@map("familia_acessos")
+}
+
+model Produto {
+  id           String          @id @default(uuid())
+  nome         String
+  descricao    String?
+  preco        Decimal         @db.Decimal(10, 2)
+  estoque      Int             @default(0)
+  imagemUrl    String?
+  ativo        Boolean         @default(true)
+  criadoEm    DateTime        @default(now())
+  atualizadoEm DateTime        @updatedAt
+
+  itens        OrcamentoItem[]
+
+  // Produtos complementares marcados pelo admin (a relação é lida nos dois sentidos)
+  relacionados   Produto[]     @relation("ProdutosRelacionados")
+  relacionadoPor Produto[]     @relation("ProdutosRelacionados")
+
+  @@map("produtos")
+}
+
+model OrcamentoItem {
+  id            String    @id @default(uuid())
+  orcamentoId   String
+  produtoId     String
+  quantidade    Int
+  precoUnitario Decimal   @db.Decimal(10, 2)
+
+  orcamento     Orcamento @relation(fields: [orcamentoId], references: [id])
+  produto       Produto   @relation(fields: [produtoId], references: [id])
+
+  @@map("orcamento_itens")
 }
 
 // Catálogo de medicamentos usado no experimento de busca fonética (PCG - Entrega 2).

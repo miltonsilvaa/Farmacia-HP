@@ -1,0 +1,26 @@
+{
+  "name": "homeoformula-app",
+  "version": "1.0.0",
+  "description": "Projeto de Extensão Curricular (PCE) do curso de Ciência da Computação da Universidade Católica de Santos (UniSantos).",
+  "main": "index.js",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HomeoFormula-PCE-UniSantos/homeoformula-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/HomeoFormula-PCE-UniSantos/homeoformula-app/issues"
+  },
+  "homepage": "https://github.com/HomeoFormula-PCE-UniSantos/homeoformula-app#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

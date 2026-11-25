@@ -19,7 +19,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Alias usado pelos componentes do shadcn/ui */
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]
 }

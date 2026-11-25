@@ -6,17 +6,17 @@ services:
     image: postgres:15-alpine
     container_name: homeoformula_db
     ports:
-      - "5432:5432"
+      - "5433:5432" # <-- MUDAMOS A PORTA AQUI
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: homeoformula
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   # Armazenamento de Arquivos (MinIO)
   minio:
-    image: minio/minio
+    image: pgsty/silo
     container_name: homeoformula_minio
     ports:
       - "9000:9000" 
@@ -39,12 +39,30 @@ services:
     depends_on:
       - postgres
       - minio
+      - mailpit
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      # Host do MinIO usado nos links de receita abertos pelo navegador
+      - MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT:-localhost}
+      # ERP legado: ERP_MODO=mock|arquivo|http. Vazio: http se houver ERP_URL, senão arquivo (./backend/erp-saida)
+      - ERP_MODO=${ERP_MODO:-}
+      - ERP_URL=${ERP_URL:-}
+      - ERP_TOKEN=${ERP_TOKEN:-}
+      - ERP_FORMATO=${ERP_FORMATO:-json}
+      - ERP_PASTA_SAIDA=/usr/src/app/erp-saida
+      # Lembrete de recompra: link do e-mail e dias após o pedido
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT}
+      - LEMBRETE_RECOMPRA_DIAS=${LEMBRETE_RECOMPRA_DIAS:-25}
+    volumes:
+      - ./backend/erp-saida:/usr/src/app/erp-saida
 
   # Frontend React
   frontend:
@@ -56,8 +74,25 @@ services:
       - "${FRONTEND_PORT}:5173"
     environment:
       - VITE_API_URL=http://localhost:${BACKEND_PORT}
+      # WhatsApp da farmácia com DDI+DDD, só dígitos (vazio esconde o botão)
+      - VITE_WHATSAPP_FARMACIA=${WHATSAPP_FARMACIA:-}
     depends_on:
       - backend
+
+  # Mailpit - caixa de entrada de testes (http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit
+    container_name: homeoformula_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # Adminer - Gerenciador do Banco (Lugar Certo)
+  adminer:
+    image: adminer
+    container_name: homeoformula_adminer
+    ports:
+      - "8081:8080"
 
 volumes:
   pgdata:
