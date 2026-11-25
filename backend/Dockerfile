@@ -15,6 +15,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build /app/src ./src
 COPY --from=build /app/test/data ./test/data
 
 EXPOSE 3000
