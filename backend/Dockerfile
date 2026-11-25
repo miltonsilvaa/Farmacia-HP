@@ -16,4 +16,4 @@ COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/test/data ./test/data
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && npx prisma db seed && node dist/main"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx prisma db seed && node dist/main"]
