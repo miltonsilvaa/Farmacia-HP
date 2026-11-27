@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { SCHEDULE_CRON_OPTIONS } from '@nestjs/schedule/dist/schedule.constants';
 import { ErpService } from './erp.service';
 import { ErpMockAdapter } from './adapters/out/erp/erp-mock.adapter';
 
@@ -28,6 +29,7 @@ function criar(erp = new ErpMockAdapter()) {
   const prisma = {
     orcamento: {
       findUnique: jest.fn().mockResolvedValue(pedidoBanco),
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(({ data }) => Promise.resolve(data)),
     },
   };
@@ -176,5 +178,62 @@ describe('ErpService', () => {
       'Pedido não encontrado',
     );
     expect(prisma.orcamento.update).not.toHaveBeenCalled();
+  });
+
+  describe('reenviarPendentes', () => {
+    it('busca só os pedidos com erpStatus ERRO e tenta reenviar cada um', async () => {
+      const { service, prisma, erp } = criar();
+      prisma.orcamento.findMany.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+      prisma.orcamento.findUnique.mockResolvedValue(pedidoBanco);
+
+      const r = await service.reenviarPendentes();
+
+      expect(prisma.orcamento.findMany).toHaveBeenCalledWith({
+        where: { erpStatus: 'ERRO' },
+        select: { id: true },
+      });
+      expect(erp.enviados).toHaveLength(2);
+      expect(r.pendentes).toBe(2);
+    });
+
+    it('sem pedidos pendentes, não chama o ERP', async () => {
+      const { service, erp } = criar();
+
+      const r = await service.reenviarPendentes();
+
+      expect(erp.enviados).toHaveLength(0);
+      expect(r.pendentes).toBe(0);
+    });
+
+    it('pedido que falha de novo continua ERRO, sem travar o reprocessamento dos outros', async () => {
+      const erpInstavel = {
+        enviarPedido: jest
+          .fn()
+          .mockRejectedValueOnce(new Error('ERP respondeu 503'))
+          .mockResolvedValueOnce(undefined),
+      };
+      const { service, prisma } = criar(erpInstavel as any);
+      prisma.orcamento.findMany.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+      prisma.orcamento.findUnique.mockResolvedValue(pedidoBanco);
+
+      const r = await service.reenviarPendentes();
+
+      expect(erpInstavel.enviarPedido).toHaveBeenCalledTimes(2);
+      expect(prisma.orcamento.update.mock.calls[0][0].data.erpStatus).toBe(
+        'ERRO',
+      );
+      expect(prisma.orcamento.update.mock.calls[1][0].data.erpStatus).toBe(
+        'ENVIADO',
+      );
+      expect(r.pendentes).toBe(2);
+    });
+
+    it('está agendado para rodar a cada 5 minutos', () => {
+      const opcoes = Reflect.getMetadata(
+        SCHEDULE_CRON_OPTIONS,
+        ErpService.prototype.reenviarPendentes,
+      );
+      expect(opcoes.cronTime).toBe('*/5 * * * *');
+    });
   });
 });

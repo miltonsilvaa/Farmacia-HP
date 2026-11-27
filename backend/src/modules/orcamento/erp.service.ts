@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { MinioService } from './minio.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -125,6 +126,28 @@ export class ErpService {
         },
       });
     }
+  }
+
+  // A cada 5 minutos, tenta de novo os pedidos que falharam ao ir pro ERP.
+  // Se o ERP continuar fora do ar, erpStatus permanece ERRO e a próxima
+  // execução tenta de novo — sem precisar de reenvio manual pelo admin.
+  @Cron('*/5 * * * *')
+  async reenviarPendentes() {
+    const pendentes = await this.prisma.orcamento.findMany({
+      where: { erpStatus: 'ERRO' },
+      select: { id: true },
+    });
+
+    for (const { id } of pendentes) {
+      await this.sincronizar(id);
+    }
+
+    if (pendentes.length > 0) {
+      this.logger.log(
+        `Retentativa ERP: ${pendentes.length} pedido(s) pendente(s) reprocessado(s).`,
+      );
+    }
+    return { pendentes: pendentes.length };
   }
 
   async exportar(id: string, formato: FormatoErp) {
